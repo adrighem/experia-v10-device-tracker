@@ -78,6 +78,7 @@ homeassistant_config_entries.ConfigFlow = ConfigFlow
 
 class ConfigEntry: pass
 homeassistant_config_entries.ConfigEntry = ConfigEntry
+homeassistant_config_entries.ConfigFlowResult = Any
 
 class HomeAssistant: pass
 homeassistant_core.HomeAssistant = HomeAssistant
