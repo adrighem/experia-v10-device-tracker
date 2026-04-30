@@ -76,6 +76,11 @@ class ConfigFlow:
         super().__init_subclass__()
 homeassistant_config_entries.ConfigFlow = ConfigFlow
 
+class OptionsFlow:
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__()
+homeassistant_config_entries.OptionsFlow = OptionsFlow
+
 class ConfigEntry: pass
 homeassistant_config_entries.ConfigEntry = ConfigEntry
 homeassistant_config_entries.ConfigFlowResult = Any
@@ -92,3 +97,4 @@ homeassistant_helpers_entity_platform.AddEntitiesCallback = Any
 
 voluptuous.Schema = MagicMock
 voluptuous.Required = MagicMock
+voluptuous.Optional = MagicMock

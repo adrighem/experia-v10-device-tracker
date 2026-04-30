@@ -5,7 +5,8 @@
         "data": {
           "host": "Host",
           "username": "Username",
-          "password": "Password"
+          "password": "Password",
+          "track_wired_devices": "Also track wired devices"
         }
       }
     },
@@ -16,6 +17,15 @@
     },
     "abort": {
       "already_configured": "Device is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "track_wired_devices": "Also track wired devices"
+        }
+      }
     }
   }
 }

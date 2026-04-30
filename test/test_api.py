@@ -94,3 +94,37 @@ async def test_get_devices_old_version(api, mock_session):
 
     assert len(devices) == 1
     assert devices[0].mac == "AA:BB:CC:DD:EE:FF"
+
+@pytest.mark.asyncio
+async def test_get_devices_wired(api, mock_session):
+    """Test get_devices with track_wired_devices=True."""
+    mock_login_resp = AsyncMock()
+    mock_token_resp = AsyncMock()
+    mock_token_resp.status = 404
+    mock_data_resp = AsyncMock()
+    mock_data_resp.text.return_value = """
+    <root>
+        <OBJ_ACCESSDEV_ID>
+            <Instance>
+                <ParaName>MACAddress</ParaName><ParaValue>AA:BB:CC:DD:EE:FF</ParaValue>
+            </Instance>
+        </OBJ_ACCESSDEV_ID>
+    </root>
+    """
+
+    mock_session.get.side_effect = [
+        AsyncMock(__aenter__=AsyncMock(return_value=mock_login_resp)),
+        AsyncMock(__aenter__=AsyncMock(return_value=mock_token_resp)),
+        AsyncMock(__aenter__=AsyncMock(return_value=mock_data_resp)),
+    ]
+    mock_session.post.return_value = AsyncMock(__aenter__=AsyncMock())
+
+    devices = await api.get_devices(track_wired_devices=True)
+    
+    # Check that the data URL didn't include AccessMode=WLAN
+    data_url = mock_session.get.call_args_list[-1][0][0]
+    assert "AccessMode=WLAN" not in data_url
+    assert "home_AssociateDevs_lua.lua?" in data_url
+
+    assert len(devices) == 1
+    assert devices[0].mac == "AA:BB:CC:DD:EE:FF"

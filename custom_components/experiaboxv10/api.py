@@ -24,7 +24,7 @@ class ExperiaBoxV10Api:
         self._username = username
         self._password = password
 
-    async def get_devices(self) -> list[Device]:
+    async def get_devices(self, track_wired_devices: bool = False) -> list[Device]:
         """Get connected devices."""
         login_url = f"http://{self._host}"
         token_url = f"http://{self._host}/function_module/login_module/login_page/logintoken_lua.lua"
@@ -61,7 +61,8 @@ class ExperiaBoxV10Api:
 
         # 3. Get data
         ts = round(datetime.now(timezone.utc).timestamp() * 1000)
-        data_url = f"http://{self._host}/common_page/home_AssociateDevs_lua.lua?AccessMode=WLAN&_={ts}"
+        access_mode = "" if track_wired_devices else "AccessMode=WLAN&"
+        data_url = f"http://{self._host}/common_page/home_AssociateDevs_lua.lua?{access_mode}_={ts}"
         async with self._session.get(data_url) as resp:
             data = await resp.text()
 

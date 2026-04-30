@@ -14,8 +14,8 @@ class MockConfigFlowBase:
     def _abort_if_unique_id_configured(self):
         pass
 
-    def async_create_entry(self, title, data):
-        return {"type": "create_entry", "title": title, "data": data}
+    def async_create_entry(self, title, data, options=None):
+        return {"type": "create_entry", "title": title, "data": data, "options": options}
 
     def async_show_form(self, step_id, data_schema, errors=None):
         return {
@@ -47,6 +47,7 @@ async def test_successful_flow(flow):
         "host": "192.168.2.254",
         "username": "admin",
         "password": "password",
+        "track_wired_devices": True,
     }
 
     with patch(
@@ -57,7 +58,12 @@ async def test_successful_flow(flow):
 
     assert result["type"] == "create_entry"
     assert result["title"] == "ExperiaBox v10 (192.168.2.254)"
-    assert result["data"] == user_input
+    assert result["data"] == {
+        "host": "192.168.2.254",
+        "username": "admin",
+        "password": "password",
+    }
+    assert result["options"] == {"track_wired_devices": True}
 
 @pytest.mark.asyncio
 async def test_failed_flow(flow):

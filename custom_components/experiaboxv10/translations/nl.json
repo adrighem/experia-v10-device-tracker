@@ -5,7 +5,8 @@
         "data": {
           "host": "Host",
           "username": "Gebruikersnaam",
-          "password": "Wachtwoord"
+          "password": "Wachtwoord",
+          "track_wired_devices": "Ook bekabelde apparaten volgen"
         }
       }
     },
@@ -16,6 +17,15 @@
     },
     "abort": {
       "already_configured": "Apparaat is al geconfigureerd"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "track_wired_devices": "Ook bekabelde apparaten volgen"
+        }
+      }
     }
   }
 }
