@@ -60,11 +60,24 @@ class ExperiaBoxV10Api:
             await resp.text()
 
         # 3. Get data
+        all_data = []
+        
+        # Get WLAN devices
         ts = round(datetime.now(timezone.utc).timestamp() * 1000)
-        access_mode = "" if track_wired_devices else "AccessMode=WLAN&"
-        data_url = f"http://{self._host}/common_page/home_AssociateDevs_lua.lua?{access_mode}_={ts}"
+        data_url = f"http://{self._host}/common_page/home_AssociateDevs_lua.lua?AccessMode=WLAN&_={ts}"
         async with self._session.get(data_url) as resp:
             data = await resp.text()
+            if "500 Internal Server Error" not in data:
+                all_data.append(data)
+                
+        # Get LAN devices if requested
+        if track_wired_devices:
+            ts = round(datetime.now(timezone.utc).timestamp() * 1000)
+            data_url_lan = f"http://{self._host}/common_page/home_AssociateDevs_lua.lua?AccessMode=LAN&_={ts}"
+            async with self._session.get(data_url_lan) as resp:
+                data = await resp.text()
+                if "500 Internal Server Error" not in data:
+                    all_data.append(data)
 
         # 4. Logout
         logout_payload = {
@@ -75,7 +88,11 @@ class ExperiaBoxV10Api:
         async with self._session.post(login_url, data=logout_payload) as resp:
             await resp.text()
 
-        return self._parse_xml(data)
+        results = []
+        for data in all_data:
+            results.extend(self._parse_xml(data))
+            
+        return results
 
     def _parse_xml(self, data: str) -> list[Device]:
         try:

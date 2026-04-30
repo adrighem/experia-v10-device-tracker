@@ -101,8 +101,8 @@ async def test_get_devices_wired(api, mock_session):
     mock_login_resp = AsyncMock()
     mock_token_resp = AsyncMock()
     mock_token_resp.status = 404
-    mock_data_resp = AsyncMock()
-    mock_data_resp.text.return_value = """
+    mock_data_resp_wlan = AsyncMock()
+    mock_data_resp_wlan.text.return_value = """
     <root>
         <OBJ_ACCESSDEV_ID>
             <Instance>
@@ -111,20 +111,32 @@ async def test_get_devices_wired(api, mock_session):
         </OBJ_ACCESSDEV_ID>
     </root>
     """
+    mock_data_resp_lan = AsyncMock()
+    mock_data_resp_lan.text.return_value = """
+    <root>
+        <OBJ_ACCESSDEV_ID>
+            <Instance>
+                <ParaName>MACAddress</ParaName><ParaValue>11:22:33:44:55:66</ParaValue>
+            </Instance>
+        </OBJ_ACCESSDEV_ID>
+    </root>
+    """
 
     mock_session.get.side_effect = [
         AsyncMock(__aenter__=AsyncMock(return_value=mock_login_resp)),
         AsyncMock(__aenter__=AsyncMock(return_value=mock_token_resp)),
-        AsyncMock(__aenter__=AsyncMock(return_value=mock_data_resp)),
+        AsyncMock(__aenter__=AsyncMock(return_value=mock_data_resp_wlan)),
+        AsyncMock(__aenter__=AsyncMock(return_value=mock_data_resp_lan)),
     ]
     mock_session.post.return_value = AsyncMock(__aenter__=AsyncMock())
 
     devices = await api.get_devices(track_wired_devices=True)
     
-    # Check that the data URL didn't include AccessMode=WLAN
-    data_url = mock_session.get.call_args_list[-1][0][0]
-    assert "AccessMode=WLAN" not in data_url
-    assert "home_AssociateDevs_lua.lua?" in data_url
+    # Check that both WLAN and LAN requests were made
+    calls = mock_session.get.call_args_list
+    assert any("AccessMode=WLAN" in call[0][0] for call in calls)
+    assert any("AccessMode=LAN" in call[0][0] for call in calls)
 
-    assert len(devices) == 1
+    assert len(devices) == 2
     assert devices[0].mac == "AA:BB:CC:DD:EE:FF"
+    assert devices[1].mac == "11:22:33:44:55:66"
