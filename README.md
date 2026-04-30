@@ -3,47 +3,49 @@
 This module is a device tracker for Home Assistant. It allows customers of KPN and Telfort to
 enable presence detection with their ZTE H369A (Experia V10) box in Home Assistant.
 
-## Setup
+**Note:** This is a modernized fork of the original [experia-v10-device-tracker](https://github.com/kadima-tech/experia-v10-device-tracker).
+It has been refactored to follow the latest Home Assistant integration standards, including UI-based configuration (Config Flow) and asynchronous data fetching.
 
-1. Clone this repository to your local machine.
-2. Copy the directory named ***experiaboxv10*** to ***/config/custom_components/*** on your Home Assistant Samba/SSH share. 
-3. Configure the module with the credentials as listed below.
-4. Reboot Home Assistant. A new file called ***known_devices.yaml*** will be created in your /config directory. This will contain all known devices.
+## Features
+
+- **UI-based Configuration:** No more editing `configuration.yaml`. Setup everything via the Home Assistant Integrations UI.
+- **Asynchronous:** Uses `aiohttp` for non-blocking communication with the router.
+- **Modern Entity Model:** Each tracked device is now a proper `device_tracker` entity in Home Assistant.
+- **Auto-Discovery:** New devices are automatically added to Home Assistant as they are discovered by the router.
+
+## Installation
+
+### HACS (Recommended)
+
+1. Open HACS in your Home Assistant.
+2. Click on "Integrations".
+3. Click on the three dots in the top right corner and select "Custom repositories".
+4. Add this repository URL: `https://github.com/kadima-tech/experia-v10-device-tracker` and category "Integration".
+5. Find "ExperiaBox v10" and click "Download".
+6. Restart Home Assistant.
+
+### Manual
+
+1. Download the latest release.
+2. Copy the `custom_components/experiaboxv10` folder to your `/config/custom_components/` directory.
+3. Restart Home Assistant.
 
 ## Configuration
 
-As mentioned in step 3 of the setup, the module needs to be configured for your router before anything happens. Open ***/config/configuration.yaml*** and add the following to the bottom of the file:
-
-```yaml
-device_tracker:
-  - platform: experiaboxv10
-    host: <IP OF ROUTER>
-    username: Admin
-    password: <PASSWORD>
-    new_device_defaults:
-      track_new_devices: False
-      hide_if_away: False
-```
-
-Note that you can store sensitive data like passwords in a separate file called `secrets.yaml`, see [Storing secrets](https://www.home-assistant.io/docs/configuration/secrets/). More info on how to configure/use tracked devices can be found [here](https://www.home-assistant.io/components/device_tracker/).
+1. In Home Assistant, go to **Settings** -> **Devices & Services**.
+2. Click **Add Integration**.
+3. Search for **ExperiaBox v10**.
+4. Enter your router's IP address, username, and password.
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](https://github.com/kadima-tech/experia-v10-device-tracker/blob/master/CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
-
-## Versioning
-
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/kadima-tech/experia-v10-device-tracker/tags).
-
-## Authors
-
-* **Sjaak Meulen** - *Migration from Experia v8 to v10* - [sjaakiejj](https://github.com/sjaakiejj)
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
 
 ## Acknowledgments
-Credit where credit is due. A big thanks to:
 
-* [Mark van den Berg](https://community.home-assistant.io/t/device-tracker-for-arcadyan-vgv7519-router-experia-box-v8/29362) for sharing the Experia Box V8 script upon which this script was built.
+* **Sjaak Meulen** - *Initial implementation* - [sjaakiejj](https://github.com/sjaakiejj)
+* [Mark van den Berg](https://community.home-assistant.io/t/device-tracker-for-arcadyan-vgv7519-router-experia-box-v8/29362) - *Original Experia Box V8 script*
