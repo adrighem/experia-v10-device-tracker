@@ -88,11 +88,12 @@ class ExperiaBoxV10Api:
         async with self._session.post(login_url, data=logout_payload) as resp:
             await resp.text()
 
-        results = []
+        results = {}
         for data in all_data:
-            results.extend(self._parse_xml(data))
+            for device in self._parse_xml(data):
+                results[device.mac] = device
             
-        return results
+        return list(results.values())
 
     def _parse_xml(self, data: str) -> list[Device]:
         try:
