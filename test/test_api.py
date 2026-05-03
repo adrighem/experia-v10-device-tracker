@@ -13,7 +13,11 @@ def api(mock_session):
 
 @pytest.mark.asyncio
 async def test_get_devices_new_version(api, mock_session):
-    """Test get_devices with modern firmware."""
+    """Test get_devices with modern firmware (Lua API)."""
+    # Mock JSON login failure
+    mock_json_fail = AsyncMock()
+    mock_json_fail.status = 404
+
     # Mock login page (initial cookies)
     mock_login_resp = AsyncMock()
     mock_login_resp.text.return_value = "login page"
@@ -50,6 +54,7 @@ async def test_get_devices_new_version(api, mock_session):
         AsyncMock(__aenter__=AsyncMock(return_value=mock_data_resp)),
     ]
     mock_session.post.side_effect = [
+        AsyncMock(__aenter__=AsyncMock(return_value=mock_json_fail)),
         AsyncMock(__aenter__=AsyncMock(return_value=mock_post_resp)),
         AsyncMock(__aenter__=AsyncMock(return_value=mock_logout_resp)),
     ]
@@ -64,6 +69,9 @@ async def test_get_devices_new_version(api, mock_session):
 @pytest.mark.asyncio
 async def test_get_devices_old_version(api, mock_session):
     """Test get_devices with older firmware (404 on token)."""
+    mock_json_fail = AsyncMock()
+    mock_json_fail.status = 404
+
     # Mock login page
     mock_login_resp = AsyncMock()
     
@@ -88,7 +96,10 @@ async def test_get_devices_old_version(api, mock_session):
         AsyncMock(__aenter__=AsyncMock(return_value=mock_token_resp)),
         AsyncMock(__aenter__=AsyncMock(return_value=mock_data_resp)),
     ]
-    mock_session.post.return_value = AsyncMock(__aenter__=AsyncMock())
+    
+    mock_post_resp = AsyncMock()
+    mock_post_resp.status = 404
+    mock_session.post.return_value = AsyncMock(__aenter__=AsyncMock(return_value=mock_post_resp))
 
     devices = await api.get_devices()
 
@@ -128,7 +139,10 @@ async def test_get_devices_wired(api, mock_session):
         AsyncMock(__aenter__=AsyncMock(return_value=mock_data_resp_wlan)),
         AsyncMock(__aenter__=AsyncMock(return_value=mock_data_resp_lan)),
     ]
-    mock_session.post.return_value = AsyncMock(__aenter__=AsyncMock())
+    
+    mock_post_resp = AsyncMock()
+    mock_post_resp.status = 404
+    mock_session.post.return_value = AsyncMock(__aenter__=AsyncMock(return_value=mock_post_resp))
 
     devices = await api.get_devices(track_wired_devices=True)
     
@@ -140,3 +154,58 @@ async def test_get_devices_wired(api, mock_session):
     assert len(devices) == 2
     assert devices[0].mac == "AA:BB:CC:DD:EE:FF"
     assert devices[1].mac == "11:22:33:44:55:66"
+
+@pytest.mark.asyncio
+async def test_get_devices_json_api(api, mock_session):
+    """Test get_devices with the new JSON API (KPN Box 12 firmware)."""
+    mock_login_resp = AsyncMock()
+    mock_login_resp.status = 200
+    mock_login_resp.headers = {"set-cookie": "session=123; path=/"}
+    mock_login_resp.json = AsyncMock(return_value={"data": {"contextID": "abc123def"}})
+
+    mock_data_resp = AsyncMock()
+    mock_data_resp.status = 200
+    mock_data_resp.json = AsyncMock(return_value={
+        "status": [
+            {
+                "Active": True,
+                "Tags": "lan edev mac physical eth security ipv4 ipv6",
+                "PhysAddress": "11:22:33:44:55:66",
+                "Name": "Wired Device",
+                "IPAddress": "192.168.2.100"
+            },
+            {
+                "Active": True,
+                "Tags": "wlan edev mac physical security ipv4 ipv6",
+                "PhysAddress": "AA:BB:CC:DD:EE:FF",
+                "Name": "Wireless Device",
+                "IPAddress": "192.168.2.101"
+            },
+            {
+                "Active": False,
+                "Tags": "wlan edev mac physical security ipv4 ipv6",
+                "PhysAddress": "00:00:00:00:00:00",
+                "Name": "Offline Device",
+                "IPAddress": "192.168.2.102"
+            }
+        ]
+    })
+
+    mock_session.post.side_effect = [
+        AsyncMock(__aenter__=AsyncMock(return_value=mock_login_resp)),
+        AsyncMock(__aenter__=AsyncMock(return_value=mock_data_resp)),
+    ]
+
+    devices = await api.get_devices(track_wired_devices=True)
+
+    assert len(devices) == 2
+    
+    # Assert Wired device
+    assert devices[0].mac == "11:22:33:44:55:66"
+    assert devices[0].name == "Wired Device"
+    assert devices[0].ip == "192.168.2.100"
+
+    # Assert Wireless device
+    assert devices[1].mac == "AA:BB:CC:DD:EE:FF"
+    assert devices[1].name == "Wireless Device"
+    assert devices[1].ip == "192.168.2.101"

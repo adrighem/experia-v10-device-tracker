@@ -1,4 +1,5 @@
 """DataUpdateCoordinator for ExperiaBox v10."""
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -14,6 +15,7 @@ from .const import DOMAIN, CONF_TRACK_WIRED_DEVICES
 from .api import ExperiaBoxV10Api, Device
 
 _LOGGER = logging.getLogger(__name__)
+
 
 class ExperiaBoxV10Coordinator(DataUpdateCoordinator[list[Device]]):
     """Class to manage fetching ExperiaBox v10 data."""
@@ -41,4 +43,6 @@ class ExperiaBoxV10Coordinator(DataUpdateCoordinator[list[Device]]):
         try:
             return await self.api.get_devices(self.track_wired_devices)
         except Exception as exception:
-            raise UpdateFailed(f"Error communicating with ExperiaBox: {exception}") from exception
+            raise UpdateFailed(
+                f"Error communicating with ExperiaBox: {exception}"
+            ) from exception

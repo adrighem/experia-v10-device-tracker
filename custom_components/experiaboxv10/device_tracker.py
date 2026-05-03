@@ -1,4 +1,5 @@
 """Support for ZTE H369A router."""
+
 from __future__ import annotations
 
 import logging
@@ -12,8 +13,10 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import ExperiaBoxV10Coordinator
+from .api import Device
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -31,9 +34,11 @@ async def async_setup_entry(
         new_entities = []
         for device in coordinator.data:
             if device.mac not in tracked:
-                new_entities.append(ExperiaBoxV10DeviceScannerEntity(coordinator, device.mac))
+                new_entities.append(
+                    ExperiaBoxV10DeviceScannerEntity(coordinator, device.mac)
+                )
                 tracked.add(device.mac)
-        
+
         if new_entities:
             async_add_entities(new_entities)
 
@@ -44,7 +49,9 @@ async def async_setup_entry(
     entry.async_on_unload(coordinator.async_add_listener(async_update_entities))
 
 
-class ExperiaBoxV10DeviceScannerEntity(CoordinatorEntity[ExperiaBoxV10Coordinator], ScannerEntity):
+class ExperiaBoxV10DeviceScannerEntity(
+    CoordinatorEntity[ExperiaBoxV10Coordinator], ScannerEntity
+):
     """Represent a tracked device."""
 
     _attr_has_entity_name = True
@@ -55,11 +62,19 @@ class ExperiaBoxV10DeviceScannerEntity(CoordinatorEntity[ExperiaBoxV10Coordinato
         self._mac = mac
 
     @property
-    def name(self) -> str | None:
-        """Return the name of the device."""
+    def _device(self) -> Device | None:
+        """Helper to get device from coordinator."""
         for device in self.coordinator.data:
             if device.mac == self._mac:
-                return device.name or self._mac
+                return device
+        return None
+
+    @property
+    def name(self) -> str | None:
+        """Return the name of the device."""
+        device = self._device
+        if device and device.name:
+            return device.name
         return self._mac
 
     @property
@@ -70,7 +85,7 @@ class ExperiaBoxV10DeviceScannerEntity(CoordinatorEntity[ExperiaBoxV10Coordinato
     @property
     def is_connected(self) -> bool:
         """Return true if the device is connected to the network."""
-        return any(device.mac == self._mac for device in self.coordinator.data)
+        return self._device is not None
 
     @property
     def source_type(self) -> SourceType:
@@ -85,7 +100,7 @@ class ExperiaBoxV10DeviceScannerEntity(CoordinatorEntity[ExperiaBoxV10Coordinato
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return the state attributes."""
-        for device in self.coordinator.data:
-            if device.mac == self._mac:
-                return {"ip": device.ip}
+        device = self._device
+        if device:
+            return {"ip": device.ip}
         return {}

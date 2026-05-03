@@ -1,4 +1,5 @@
 """Config flow for ExperiaBox v10 integration."""
+
 from __future__ import annotations
 
 import logging
@@ -26,19 +27,17 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
     }
 )
 
+
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
     session = async_get_clientsession(hass)
     api = ExperiaBoxV10Api(
-        session,
-        data[CONF_HOST],
-        data[CONF_USERNAME],
-        data[CONF_PASSWORD]
+        session, data[CONF_HOST], data[CONF_USERNAME], data[CONF_PASSWORD]
     )
-    
+
     # Try to get devices as validation
     await api.get_devices()
-    
+
     return {"title": f"ExperiaBox v10 ({data[CONF_HOST]})"}
 
 
@@ -82,13 +81,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_PASSWORD: user_input[CONF_PASSWORD],
                 },
                 options={
-                    CONF_TRACK_WIRED_DEVICES: user_input.get(CONF_TRACK_WIRED_DEVICES, False),
-                }
+                    CONF_TRACK_WIRED_DEVICES: user_input.get(
+                        CONF_TRACK_WIRED_DEVICES, False
+                    ),
+                },
             )
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
         )
+
 
 class OptionsFlowHandler(OptionsFlow):
     """Handle options."""
@@ -110,7 +112,9 @@ class OptionsFlowHandler(OptionsFlow):
                 {
                     vol.Optional(
                         CONF_TRACK_WIRED_DEVICES,
-                        default=self.config_entry.options.get(CONF_TRACK_WIRED_DEVICES, False),
+                        default=self.config_entry.options.get(
+                            CONF_TRACK_WIRED_DEVICES, False
+                        ),
                     ): bool,
                 }
             ),
