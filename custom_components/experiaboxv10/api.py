@@ -58,7 +58,7 @@ class ExperiaBoxV10Api:
         ) as resp:
             resp.raise_for_status()
             data = await resp.json(content_type=None)
-            if "data" not in data or "contextID" not in data["data"]:
+            if not data or "data" not in data or "contextID" not in data["data"]:
                 raise Exception("Failed to get contextID from JSON API")
 
             self._context_id = data["data"]["contextID"]
@@ -108,10 +108,15 @@ class ExperiaBoxV10Api:
         data = await self._request(
             "Devices", "get", {"expression": "not interface and not self and not voice"}
         )
-        status = data.get("status", [])
+        if not data:
+            return []
+        
+        status = data.get("status") or []
 
         results = {}
         for d in status:
+            if not d:
+                continue
             if not d.get("Active"):
                 continue
 
@@ -132,7 +137,7 @@ class ExperiaBoxV10Api:
     async def get_router_info(self) -> RouterInfo:
         """Get router system information."""
         data = await self._request("sah.Device.Information", "get")
-        status = data.get("status", {})
+        status = (data and data.get("status")) or {}
 
         return RouterInfo(
             model=status.get("ModelName", "Experia Box V10"),
@@ -145,18 +150,18 @@ class ExperiaBoxV10Api:
     async def get_wan_info(self) -> WanInfo:
         """Get WAN connection information."""
         data = await self._request("sah.Device.WAN", "get")
-        status = data.get("status", {})
+        status = (data and data.get("status")) or {}
 
         return WanInfo(
             external_ip=status.get("ExternalIPAddress", ""),
-            connected=status.get("ConnectionStatus", "").lower() == "connected",
+            connected=str(status.get("ConnectionStatus", "")).lower() == "connected",
             link_status=status.get("LinkStatus", "Down"),
         )
 
     async def get_traffic_info(self) -> TrafficInfo:
         """Get WAN traffic statistics."""
         data = await self._request("sah.Device.WAN", "getStatistics")
-        status = data.get("status", {})
+        status = (data and data.get("status")) or {}
 
         return TrafficInfo(
             bytes_sent=int(status.get("BytesSent", 0)),
@@ -173,11 +178,11 @@ class ExperiaBoxV10Api:
         """Get Guest Wi-Fi status."""
         # Look for the guest network interface (usually index 5 or 6 on ZTE)
         data = await self._request("sah.Device.WiFi.Radio", "get")
-        status = data.get("status", [])
+        status = (data and data.get("status")) or []
         # Guest SSID is usually the one with 'guest' in the name or specific index
         # For simplicity and robustness, we check for 'Guest' in the SSIDs
         for entry in status:
-            if "Guest" in entry.get("SSID", ""):
+            if entry and "Guest" in entry.get("SSID", ""):
                 return entry.get("Enable", False)
         return False
 
@@ -185,9 +190,9 @@ class ExperiaBoxV10Api:
         """Enable or disable Guest Wi-Fi."""
         # Find the guest interface first
         data = await self._request("sah.Device.WiFi.Radio", "get")
-        status = data.get("status", [])
+        status = (data and data.get("status")) or []
         for entry in status:
-            if "Guest" in entry.get("SSID", ""):
+            if entry and "Guest" in entry.get("SSID", ""):
                 uid = entry.get("UID")
                 if uid:
                     await self._request(
