@@ -61,14 +61,10 @@ class ExperiaBoxV10Api:
             data = await resp.json(content_type=None)
             _LOGGER.debug("Login response: %s", data)
             
-            if not isinstance(data, dict):
-                raise Exception(f"Unexpected login response type: {type(data)}")
-                
-            data_field = data.get("data")
-            if not isinstance(data_field, dict) or "contextID" not in data_field:
+            if not isinstance(data, dict) or "data" not in data or "contextID" not in data["data"]:
                 raise Exception("Failed to get contextID from JSON API response")
 
-            self._context_id = data_field["contextID"]
+            self._context_id = data["data"]["contextID"]
             # Multidict proxy get is safe even if header missing
             cookie_header = resp.headers.get("set-cookie", "")
             self._cookie = cookie_header.split(";")[0] if cookie_header else ""
@@ -76,12 +72,18 @@ class ExperiaBoxV10Api:
             _LOGGER.debug("Got context ID: %s", self._context_id)
             return self._context_id, self._cookie
 
-    async def _request(self, service: str, method: str, parameters: dict | None = None) -> dict[str, Any]:
+    async def _request(
+        self,
+        service: str,
+        method: str,
+        parameters: dict | None = None,
+        endpoint: str = "NeMo/Intf/lan:getMIBs",
+    ) -> dict[str, Any]:
         """Make a request to the router API."""
         if not self._context_id or self._cookie is None:
             await self._get_context()
 
-        url = f"http://{self._host}/ws/NeMo/Intf/lan:getMIBs"
+        url = f"http://{self._host}/ws/{endpoint}"
         headers = {
             "Content-Type": "application/x-sah-ws-4-call+json",
             "Authorization": f"X-Sah {self._context_id}",
@@ -94,7 +96,7 @@ class ExperiaBoxV10Api:
             "parameters": parameters or {},
         }
 
-        _LOGGER.debug("Requesting %s.%s", service, method)
+        _LOGGER.debug("Requesting %s.%s via %s", service, method, endpoint)
         try:
             async with self._session.post(url, json=payload, headers=headers) as resp:
                 if resp.status in (401, 403):
@@ -103,11 +105,13 @@ class ExperiaBoxV10Api:
                     headers["Authorization"] = f"X-Sah {self._context_id}"
                     headers["X-Context"] = self._context_id
                     headers["Cookie"] = self._cookie
-                    async with self._session.post(url, json=payload, headers=headers) as resp2:
+                    async with self._session.post(
+                        url, json=payload, headers=headers
+                    ) as resp2:
                         resp2.raise_for_status()
                         data = await resp2.json(content_type=None)
                         return data if isinstance(data, dict) else {}
-                
+
                 resp.raise_for_status()
                 data = await resp.json(content_type=None)
                 return data if isinstance(data, dict) else {}
@@ -151,7 +155,9 @@ class ExperiaBoxV10Api:
 
     async def get_router_info(self) -> RouterInfo:
         """Get router system information."""
-        data = await self._request("sah.Device.Information", "get")
+        data = await self._request(
+            "Device.Information", "get", endpoint="Device/Information:get"
+        )
         status = data.get("status")
         if not isinstance(status, dict):
             status = {}
@@ -166,34 +172,47 @@ class ExperiaBoxV10Api:
 
     async def get_wan_info(self) -> WanInfo:
         """Get WAN connection information."""
-        data = await self._request("sah.Device.WAN", "get")
-        status = data.get("status")
-        if not isinstance(status, dict):
-            status = {}
+        data = await self._request(
+            "wan", "getMIBs", {"mibs": "wan"}, endpoint="NeMo/Intf/wan:getMIBs"
+        )
+        status = data.get("status") or {}
+        # The result for getMIBs is usually a dict where keys are MIB names
+        wan_mib = status.get("wan") or {}
+        if isinstance(wan_mib, list) and wan_mib:
+            wan_mib = wan_mib[0]
+        elif not isinstance(wan_mib, dict):
+            wan_mib = {}
 
         return WanInfo(
-            external_ip=str(status.get("ExternalIPAddress", "")),
-            connected=str(status.get("ConnectionStatus", "")).lower() == "connected",
-            link_status=str(status.get("LinkStatus", "Down")),
+            external_ip=str(wan_mib.get("ExternalIPAddress", "")),
+            connected=str(wan_mib.get("ConnectionStatus", "")).lower() == "connected",
+            link_status=str(wan_mib.get("LinkStatus", "Down")),
         )
 
     async def get_traffic_info(self) -> TrafficInfo:
         """Get WAN traffic statistics."""
-        data = await self._request("sah.Device.WAN", "getStatistics")
-        status = data.get("status")
-        if not isinstance(status, dict):
-            status = {}
+        data = await self._request(
+            "wan", "getMIBs", {"mibs": "statistics"}, endpoint="NeMo/Intf/wan:getMIBs"
+        )
+        status = data.get("status") or {}
+        stats_mib = status.get("statistics") or {}
+        if isinstance(stats_mib, list) and stats_mib:
+            stats_mib = stats_mib[0]
+        elif not isinstance(stats_mib, dict):
+            stats_mib = {}
 
         return TrafficInfo(
-            bytes_sent=int(status.get("BytesSent", 0) or 0),
-            bytes_received=int(status.get("BytesReceived", 0) or 0),
-            packets_sent=int(status.get("PacketsSent", 0) or 0),
-            packets_received=int(status.get("PacketsReceived", 0) or 0),
+            bytes_sent=int(stats_mib.get("BytesSent", 0) or 0),
+            bytes_received=int(stats_mib.get("BytesReceived", 0) or 0),
+            packets_sent=int(stats_mib.get("PacketsSent", 0) or 0),
+            packets_received=int(stats_mib.get("PacketsReceived", 0) or 0),
         )
 
     async def reboot(self) -> None:
         """Reboot the router."""
-        await self._request("sah.Device.Information", "reboot")
+        await self._request(
+            "Device.Information", "reboot", endpoint="Device/Information:reboot"
+        )
 
     async def get_guest_wifi_enabled(self) -> bool:
         """Get Guest Wi-Fi status."""
@@ -201,7 +220,7 @@ class ExperiaBoxV10Api:
         status = data.get("status")
         if not isinstance(status, list):
             return False
-            
+
         for entry in status:
             if isinstance(entry, dict) and "Guest" in str(entry.get("SSID", "")):
                 return entry.get("Enable", False)
