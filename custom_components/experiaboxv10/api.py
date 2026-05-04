@@ -52,23 +52,33 @@ class ExperiaBoxV10Api:
             "Authorization": "X-Sah-Login",
         }
 
+        _LOGGER.debug("Attempting to get context from %s", login_url)
         timeout = ClientTimeout(total=5)
         async with self._session.post(
             login_url, json=login_payload, headers=headers, timeout=timeout
         ) as resp:
             resp.raise_for_status()
             data = await resp.json(content_type=None)
-            if not isinstance(data, dict) or "data" not in data or "contextID" not in data["data"]:
-                _LOGGER.debug("Unexpected login response: %s", data)
-                raise Exception("Failed to get contextID from JSON API")
+            _LOGGER.debug("Login response: %s", data)
+            
+            if not isinstance(data, dict):
+                raise Exception(f"Unexpected login response type: {type(data)}")
+                
+            data_field = data.get("data")
+            if not isinstance(data_field, dict) or "contextID" not in data_field:
+                raise Exception("Failed to get contextID from JSON API response")
 
-            self._context_id = data["data"]["contextID"]
-            self._cookie = resp.headers.get("set-cookie", "").split(";")[0]
+            self._context_id = data_field["contextID"]
+            # Multidict proxy get is safe even if header missing
+            cookie_header = resp.headers.get("set-cookie", "")
+            self._cookie = cookie_header.split(";")[0] if cookie_header else ""
+            
+            _LOGGER.debug("Got context ID: %s", self._context_id)
             return self._context_id, self._cookie
 
     async def _request(self, service: str, method: str, parameters: dict | None = None) -> dict[str, Any]:
         """Make a request to the router API."""
-        if not self._context_id or not self._cookie:
+        if not self._context_id or self._cookie is None:
             await self._get_context()
 
         url = f"http://{self._host}/ws/NeMo/Intf/lan:getMIBs"
@@ -84,10 +94,11 @@ class ExperiaBoxV10Api:
             "parameters": parameters or {},
         }
 
+        _LOGGER.debug("Requesting %s.%s", service, method)
         try:
             async with self._session.post(url, json=payload, headers=headers) as resp:
                 if resp.status in (401, 403):
-                    # Session might have expired, try to re-auth once
+                    _LOGGER.debug("Session expired, re-authenticating")
                     await self._get_context()
                     headers["Authorization"] = f"X-Sah {self._context_id}"
                     headers["X-Context"] = self._context_id
@@ -101,6 +112,7 @@ class ExperiaBoxV10Api:
                 data = await resp.json(content_type=None)
                 return data if isinstance(data, dict) else {}
         except Exception:
+            _LOGGER.debug("Request to %s.%s failed", service, method)
             # Clear context on error so next attempt tries re-auth
             self._context_id = None
             self._cookie = None
@@ -113,6 +125,7 @@ class ExperiaBoxV10Api:
         )
         status = data.get("status")
         if not isinstance(status, list):
+            _LOGGER.debug("No devices status in response")
             return []
 
         results = {}
@@ -122,7 +135,7 @@ class ExperiaBoxV10Api:
             if not d.get("Active"):
                 continue
 
-            tags = d.get("Tags", "").split()
+            tags = str(d.get("Tags", "")).split()
             is_wired = "eth" in tags or "lan" in tags
 
             if not track_wired_devices and is_wired:
@@ -131,7 +144,7 @@ class ExperiaBoxV10Api:
             mac = d.get("PhysAddress")
             if mac:
                 results[mac.upper()] = Device(
-                    mac.upper(), d.get("Name", ""), d.get("IPAddress", "")
+                    mac.upper(), str(d.get("Name", "")), str(d.get("IPAddress", ""))
                 )
 
         return list(results.values())
@@ -144,11 +157,11 @@ class ExperiaBoxV10Api:
             status = {}
 
         return RouterInfo(
-            model=status.get("ModelName", "Experia Box V10"),
-            hardware_version=status.get("HardwareVersion", ""),
-            software_version=status.get("SoftwareVersion", ""),
-            serial_number=status.get("SerialNumber", ""),
-            uptime=status.get("UpTime", 0),
+            model=str(status.get("ModelName", "Experia Box V10")),
+            hardware_version=str(status.get("HardwareVersion", "")),
+            software_version=str(status.get("SoftwareVersion", "")),
+            serial_number=str(status.get("SerialNumber", "")),
+            uptime=int(status.get("UpTime", 0) or 0),
         )
 
     async def get_wan_info(self) -> WanInfo:
@@ -159,9 +172,9 @@ class ExperiaBoxV10Api:
             status = {}
 
         return WanInfo(
-            external_ip=status.get("ExternalIPAddress", ""),
+            external_ip=str(status.get("ExternalIPAddress", "")),
             connected=str(status.get("ConnectionStatus", "")).lower() == "connected",
-            link_status=status.get("LinkStatus", "Down"),
+            link_status=str(status.get("LinkStatus", "Down")),
         )
 
     async def get_traffic_info(self) -> TrafficInfo:
@@ -172,10 +185,10 @@ class ExperiaBoxV10Api:
             status = {}
 
         return TrafficInfo(
-            bytes_sent=int(status.get("BytesSent", 0)),
-            bytes_received=int(status.get("BytesReceived", 0)),
-            packets_sent=int(status.get("PacketsSent", 0)),
-            packets_received=int(status.get("PacketsReceived", 0)),
+            bytes_sent=int(status.get("BytesSent", 0) or 0),
+            bytes_received=int(status.get("BytesReceived", 0) or 0),
+            packets_sent=int(status.get("PacketsSent", 0) or 0),
+            packets_received=int(status.get("PacketsReceived", 0) or 0),
         )
 
     async def reboot(self) -> None:
@@ -190,7 +203,7 @@ class ExperiaBoxV10Api:
             return False
             
         for entry in status:
-            if isinstance(entry, dict) and "Guest" in entry.get("SSID", ""):
+            if isinstance(entry, dict) and "Guest" in str(entry.get("SSID", "")):
                 return entry.get("Enable", False)
         return False
 
@@ -202,7 +215,7 @@ class ExperiaBoxV10Api:
             raise Exception("Guest Wi-Fi interface not found")
 
         for entry in status:
-            if isinstance(entry, dict) and "Guest" in entry.get("SSID", ""):
+            if isinstance(entry, dict) and "Guest" in str(entry.get("SSID", "")):
                 uid = entry.get("UID")
                 if uid:
                     await self._request(
