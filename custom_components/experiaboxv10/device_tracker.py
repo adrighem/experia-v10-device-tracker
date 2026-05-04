@@ -9,11 +9,11 @@ from homeassistant.components.device_tracker import ScannerEntity, SourceType
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import ExperiaBoxV10Coordinator
 from .api import Device
+from .entity import ExperiaBoxV10Entity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ async def async_setup_entry(
     def async_update_entities() -> None:
         """Add new entities when they are discovered."""
         new_entities = []
-        for device in coordinator.data:
+        for device in coordinator.data.devices:
             if device.mac not in tracked:
                 new_entities.append(
                     ExperiaBoxV10DeviceScannerEntity(coordinator, device.mac)
@@ -49,12 +49,8 @@ async def async_setup_entry(
     entry.async_on_unload(coordinator.async_add_listener(async_update_entities))
 
 
-class ExperiaBoxV10DeviceScannerEntity(
-    CoordinatorEntity[ExperiaBoxV10Coordinator], ScannerEntity
-):
+class ExperiaBoxV10DeviceScannerEntity(ExperiaBoxV10Entity, ScannerEntity):
     """Represent a tracked device."""
-
-    _attr_has_entity_name = True
 
     def __init__(self, coordinator: ExperiaBoxV10Coordinator, mac: str) -> None:
         """Initialize the device."""
@@ -64,7 +60,7 @@ class ExperiaBoxV10DeviceScannerEntity(
     @property
     def _device(self) -> Device | None:
         """Helper to get device from coordinator."""
-        for device in self.coordinator.data:
+        for device in self.coordinator.data.devices:
             if device.mac == self._mac:
                 return device
         return None

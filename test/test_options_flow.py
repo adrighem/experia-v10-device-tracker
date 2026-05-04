@@ -4,12 +4,16 @@ import pytest
 from custom_components.experiaboxv10.config_flow import OptionsFlowHandler
 
 class MockOptionsFlowBase:
-    def __init__(self, config_entry):
-        self._config_entry = config_entry
+    def __init__(self):
+        self._config_entry = None
 
     @property
     def config_entry(self):
         return self._config_entry
+    
+    @config_entry.setter
+    def config_entry(self, value):
+        self._config_entry = value
 
     def async_create_entry(self, title, data):
         return {"type": "create_entry", "title": title, "data": data}
@@ -26,9 +30,10 @@ OptionsFlowHandler.__bases__ = (MockOptionsFlowBase,)
 
 @pytest.fixture
 def options_flow():
-    config_entry = MagicMock()
-    config_entry.options = {"track_wired_devices": False}
-    return OptionsFlowHandler(config_entry)
+    handler = OptionsFlowHandler()
+    handler.config_entry = MagicMock()
+    handler.config_entry.options = {"track_wired_devices": False}
+    return handler
 
 @pytest.mark.asyncio
 async def test_options_flow_init(options_flow):
