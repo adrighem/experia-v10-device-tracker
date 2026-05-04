@@ -63,7 +63,7 @@ class ExperiaBoxV10Coordinator(DataUpdateCoordinator[ExperiaBoxV10Data]):
             entry.data[CONF_USERNAME],
             entry.data[CONF_PASSWORD],
         )
-        self.track_wired_devices = entry.options.get(CONF_TRACK_WIRED_DEVICES, False)
+        self.track_wired_devices = (entry.options or {}).get(CONF_TRACK_WIRED_DEVICES, False)
         self._last_traffic_info: TrafficInfo | None = None
         self._last_traffic_time: float | None = None
         self._known_macs: set[str] | None = None
@@ -73,6 +73,7 @@ class ExperiaBoxV10Coordinator(DataUpdateCoordinator[ExperiaBoxV10Data]):
     async def _async_update_data(self) -> ExperiaBoxV10Data:
         """Update data via library."""
         try:
+            _LOGGER.debug("Fetching data from ExperiaBox v10")
             (
                 devices,
                 router_info,
@@ -86,6 +87,7 @@ class ExperiaBoxV10Coordinator(DataUpdateCoordinator[ExperiaBoxV10Data]):
                 self.api.get_traffic_info(),
                 self.api.get_guest_wifi_enabled(),
             )
+            _LOGGER.debug("Successfully fetched data from ExperiaBox v10")
 
             current_time = time.monotonic()
             
