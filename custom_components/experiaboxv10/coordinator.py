@@ -146,6 +146,7 @@ class ExperiaBoxV10Coordinator(DataUpdateCoordinator[ExperiaBoxV10Data]):
                 throughput_up,
             )
         except Exception as exception:
+            _LOGGER.exception("Error communicating with ExperiaBox v10")
             raise UpdateFailed(
                 f"Error communicating with ExperiaBox: {exception}"
             ) from exception
