@@ -61,7 +61,8 @@ class MockEntity:
     def unique_id(self):
         return getattr(self, "_attr_unique_id", None)
 
-class ScannerEntity(MockEntity): pass
+class ScannerEntity(MockEntity):
+    pass
 homeassistant.components.device_tracker.ScannerEntity = ScannerEntity
 homeassistant.components.device_tracker.SourceType = MagicMock
 homeassistant.components.device_tracker.SourceType.ROUTER = "router"
@@ -71,40 +72,55 @@ class SensorDeviceClass:
     DATA_SIZE = "data_size"
     DATA_RATE = "data_rate"
 homeassistant.components.sensor.SensorDeviceClass = SensorDeviceClass
+
 class SensorStateClass:
     TOTAL_INCREASING = "total_increasing"
     MEASUREMENT = "measurement"
 homeassistant.components.sensor.SensorStateClass = SensorStateClass
-class SensorEntity(MockEntity): pass
+
+class SensorEntity(MockEntity):
+    pass
 homeassistant.components.sensor.SensorEntity = SensorEntity
+
 class SensorEntityDescription:
     def __init__(self, **kwargs):
-        for k, v in kwargs.items(): setattr(self, k, v)
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 homeassistant.components.sensor.SensorEntityDescription = SensorEntityDescription
 
 class BinarySensorDeviceClass:
     CONNECTIVITY = "connectivity"
     SAFETY = "safety"
 homeassistant.components.binary_sensor.BinarySensorDeviceClass = BinarySensorDeviceClass
-class BinarySensorEntity(MockEntity): pass
+
+class BinarySensorEntity(MockEntity):
+    pass
 homeassistant.components.binary_sensor.BinarySensorEntity = BinarySensorEntity
+
 class BinarySensorEntityDescription:
     def __init__(self, **kwargs):
-        for k, v in kwargs.items(): setattr(self, k, v)
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 homeassistant.components.binary_sensor.BinarySensorEntityDescription = BinarySensorEntityDescription
 
-class ButtonEntity(MockEntity): pass
+class ButtonEntity(MockEntity):
+    pass
 homeassistant.components.button.ButtonEntity = ButtonEntity
+
 class ButtonEntityDescription:
     def __init__(self, **kwargs):
-        for k, v in kwargs.items(): setattr(self, k, v)
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 homeassistant.components.button.ButtonEntityDescription = ButtonEntityDescription
 
-class SwitchEntity(MockEntity): pass
+class SwitchEntity(MockEntity):
+    pass
 homeassistant.components.switch.SwitchEntity = SwitchEntity
+
 class SwitchEntityDescription:
     def __init__(self, **kwargs):
-        for k, v in kwargs.items(): setattr(self, k, v)
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 homeassistant.components.switch.SwitchEntityDescription = SwitchEntityDescription
 
 class DataUpdateCoordinator:
@@ -114,10 +130,14 @@ class DataUpdateCoordinator:
         self.name = name
         self.update_interval = update_interval
         self.data = None
-    def __class_getitem__(cls, _): return cls
-    async def async_config_entry_first_refresh(self): pass
-    def async_add_listener(self, listener): return lambda: None
-    async def async_request_refresh(self): pass
+    def __class_getitem__(cls, _):
+        return cls
+    async def async_config_entry_first_refresh(self):
+        pass
+    def async_add_listener(self, listener):
+        return lambda: None
+    async def async_request_refresh(self):
+        pass
 
 homeassistant.helpers.update_coordinator.DataUpdateCoordinator = DataUpdateCoordinator
 homeassistant.helpers.update_coordinator.UpdateFailed = Exception
@@ -125,7 +145,8 @@ homeassistant.helpers.update_coordinator.UpdateFailed = Exception
 class CoordinatorEntity:
     def __init__(self, coordinator):
         self.coordinator = coordinator
-    def __class_getitem__(cls, _): return cls
+    def __class_getitem__(cls, _):
+        return cls
 homeassistant.helpers.update_coordinator.CoordinatorEntity = CoordinatorEntity
 
 class ConfigFlow:
@@ -138,7 +159,8 @@ class OptionsFlow:
         super().__init_subclass__()
 homeassistant.config_entries.OptionsFlow = OptionsFlow
 
-class ConfigEntry: pass
+class ConfigEntry:
+    pass
 homeassistant.config_entries.ConfigEntry = ConfigEntry
 homeassistant.config_entries.ConfigFlowResult = Any
 

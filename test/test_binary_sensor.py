@@ -10,7 +10,7 @@ from custom_components.experiaboxv10.binary_sensor import (
     ExperiaBoxV10BinarySensor,
     BINARY_SENSOR_TYPES,
 )
-from custom_components.experiaboxv10.api import Device, RouterInfo, WanInfo, TrafficInfo
+from custom_components.experiaboxv10.api import RouterInfo, WanInfo, TrafficInfo
 
 @pytest.fixture
 def hass():

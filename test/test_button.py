@@ -7,7 +7,7 @@ from custom_components.experiaboxv10.coordinator import (
     ExperiaBoxV10Data,
 )
 from custom_components.experiaboxv10.button import ExperiaBoxV10Button, BUTTON_TYPES
-from custom_components.experiaboxv10.api import Device, RouterInfo, WanInfo, TrafficInfo
+from custom_components.experiaboxv10.api import RouterInfo
 
 @pytest.fixture
 def hass():
