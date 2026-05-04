@@ -58,14 +58,15 @@ class ExperiaBoxV10Api:
         ) as resp:
             resp.raise_for_status()
             data = await resp.json(content_type=None)
-            if not data or "data" not in data or "contextID" not in data["data"]:
+            if not isinstance(data, dict) or "data" not in data or "contextID" not in data["data"]:
+                _LOGGER.debug("Unexpected login response: %s", data)
                 raise Exception("Failed to get contextID from JSON API")
 
             self._context_id = data["data"]["contextID"]
             self._cookie = resp.headers.get("set-cookie", "").split(";")[0]
             return self._context_id, self._cookie
 
-    async def _request(self, service: str, method: str, parameters: dict | None = None) -> Any:
+    async def _request(self, service: str, method: str, parameters: dict | None = None) -> dict[str, Any]:
         """Make a request to the router API."""
         if not self._context_id or not self._cookie:
             await self._get_context()
@@ -93,10 +94,12 @@ class ExperiaBoxV10Api:
                     headers["Cookie"] = self._cookie
                     async with self._session.post(url, json=payload, headers=headers) as resp2:
                         resp2.raise_for_status()
-                        return await resp2.json(content_type=None)
+                        data = await resp2.json(content_type=None)
+                        return data if isinstance(data, dict) else {}
                 
                 resp.raise_for_status()
-                return await resp.json(content_type=None)
+                data = await resp.json(content_type=None)
+                return data if isinstance(data, dict) else {}
         except Exception:
             # Clear context on error so next attempt tries re-auth
             self._context_id = None
@@ -108,14 +111,13 @@ class ExperiaBoxV10Api:
         data = await self._request(
             "Devices", "get", {"expression": "not interface and not self and not voice"}
         )
-        if not data:
+        status = data.get("status")
+        if not isinstance(status, list):
             return []
-        
-        status = data.get("status") or []
 
         results = {}
         for d in status:
-            if not d:
+            if not isinstance(d, dict):
                 continue
             if not d.get("Active"):
                 continue
@@ -137,7 +139,9 @@ class ExperiaBoxV10Api:
     async def get_router_info(self) -> RouterInfo:
         """Get router system information."""
         data = await self._request("sah.Device.Information", "get")
-        status = (data and data.get("status")) or {}
+        status = data.get("status")
+        if not isinstance(status, dict):
+            status = {}
 
         return RouterInfo(
             model=status.get("ModelName", "Experia Box V10"),
@@ -150,7 +154,9 @@ class ExperiaBoxV10Api:
     async def get_wan_info(self) -> WanInfo:
         """Get WAN connection information."""
         data = await self._request("sah.Device.WAN", "get")
-        status = (data and data.get("status")) or {}
+        status = data.get("status")
+        if not isinstance(status, dict):
+            status = {}
 
         return WanInfo(
             external_ip=status.get("ExternalIPAddress", ""),
@@ -161,7 +167,9 @@ class ExperiaBoxV10Api:
     async def get_traffic_info(self) -> TrafficInfo:
         """Get WAN traffic statistics."""
         data = await self._request("sah.Device.WAN", "getStatistics")
-        status = (data and data.get("status")) or {}
+        status = data.get("status")
+        if not isinstance(status, dict):
+            status = {}
 
         return TrafficInfo(
             bytes_sent=int(status.get("BytesSent", 0)),
@@ -176,23 +184,25 @@ class ExperiaBoxV10Api:
 
     async def get_guest_wifi_enabled(self) -> bool:
         """Get Guest Wi-Fi status."""
-        # Look for the guest network interface (usually index 5 or 6 on ZTE)
         data = await self._request("sah.Device.WiFi.Radio", "get")
-        status = (data and data.get("status")) or []
-        # Guest SSID is usually the one with 'guest' in the name or specific index
-        # For simplicity and robustness, we check for 'Guest' in the SSIDs
+        status = data.get("status")
+        if not isinstance(status, list):
+            return False
+            
         for entry in status:
-            if entry and "Guest" in entry.get("SSID", ""):
+            if isinstance(entry, dict) and "Guest" in entry.get("SSID", ""):
                 return entry.get("Enable", False)
         return False
 
     async def set_guest_wifi(self, enable: bool) -> None:
         """Enable or disable Guest Wi-Fi."""
-        # Find the guest interface first
         data = await self._request("sah.Device.WiFi.Radio", "get")
-        status = (data and data.get("status")) or []
+        status = data.get("status")
+        if not isinstance(status, list):
+            raise Exception("Guest Wi-Fi interface not found")
+
         for entry in status:
-            if entry and "Guest" in entry.get("SSID", ""):
+            if isinstance(entry, dict) and "Guest" in entry.get("SSID", ""):
                 uid = entry.get("UID")
                 if uid:
                     await self._request(

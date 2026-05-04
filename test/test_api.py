@@ -200,3 +200,36 @@ async def test_login_failure(api, mock_session):
 
     with pytest.raises(Exception, match="Unauthorized"):
         await api.get_devices()
+
+@pytest.mark.asyncio
+async def test_get_router_info_null_status(api, mock_session):
+    """Test get_router_info with null status response."""
+    mock_login_resp = create_mock_response(
+        status=200,
+        json_data={"data": {"contextID": "abc"}},
+    )
+    mock_data_resp = create_mock_response(
+        status=200,
+        json_data={"status": None}
+    )
+    mock_session.post.side_effect = [mock_login_resp, mock_data_resp]
+
+    info = await api.get_router_info()
+    assert info.model == "Experia Box V10"
+    assert info.uptime == 0
+
+@pytest.mark.asyncio
+async def test_get_devices_null_status(api, mock_session):
+    """Test get_devices with null status response."""
+    mock_login_resp = create_mock_response(
+        status=200,
+        json_data={"data": {"contextID": "abc"}},
+    )
+    mock_data_resp = create_mock_response(
+        status=200,
+        json_data={"status": None}
+    )
+    mock_session.post.side_effect = [mock_login_resp, mock_data_resp]
+
+    devices = await api.get_devices()
+    assert devices == []
