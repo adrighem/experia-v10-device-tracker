@@ -113,10 +113,12 @@ class ExperiaBoxV10Api:
                     ) as resp2:
                         resp2.raise_for_status()
                         data = await resp2.json(content_type=None)
+                        _LOGGER.debug("Response from %s.%s (after re-auth): %s", service, method, str(data)[:500])
                         return data if isinstance(data, dict) else {}
 
                 resp.raise_for_status()
                 data = await resp.json(content_type=None)
+                _LOGGER.debug("Response from %s.%s: %s", service, method, str(data)[:500])
                 return data if isinstance(data, dict) else {}
         except Exception:
             _LOGGER.debug("Request to %s.%s failed", service, method)
