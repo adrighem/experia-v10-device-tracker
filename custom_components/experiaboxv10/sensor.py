@@ -43,7 +43,6 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.DATA_SIZE,
         native_unit_of_measurement=UnitOfInformation.BYTES,
         state_class=SensorStateClass.TOTAL_INCREASING,
-        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="bytes_sent",
@@ -51,7 +50,6 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.DATA_SIZE,
         native_unit_of_measurement=UnitOfInformation.BYTES,
         state_class=SensorStateClass.TOTAL_INCREASING,
-        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     SensorEntityDescription(
         key="throughput_down",
@@ -130,7 +128,7 @@ class ExperiaBoxV10Sensor(ExperiaBoxV10Entity, SensorEntity):
         if self.entity_description.key == "throughput_up":
             return self.coordinator.data.throughput_up
         if self.entity_description.key == "client_count":
-            return len(self.coordinator.data.devices)
+            return len([d for d in self.coordinator.data.devices if d.active])
         if self.entity_description.key == "last_new_device":
             return self.coordinator.data.last_new_device
         return None

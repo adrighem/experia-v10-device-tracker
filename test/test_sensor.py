@@ -31,7 +31,7 @@ def test_sensor_properties(coordinator):
     mock_wan_info = WanInfo("8.8.8.8", True, "Up")
     mock_traffic_info = TrafficInfo(1000, 2000, 10, 20)
     coordinator.data = ExperiaBoxV10Data(
-        devices=[Device("M1", "D1", "1.1.1.1")],
+        devices=[Device("M1", "D1", "1.1.1.1", True)],
         router_info=mock_router_info,
         wan_info=mock_wan_info,
         traffic_info=mock_traffic_info,

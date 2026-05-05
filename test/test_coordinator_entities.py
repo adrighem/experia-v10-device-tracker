@@ -34,7 +34,7 @@ def test_coordinator_init(coordinator):
 @pytest.mark.asyncio
 async def test_coordinator_update_data(coordinator):
     """Test coordinator data update."""
-    mock_devices = [Device("MAC1", "Name1", "1.1.1.1")]
+    mock_devices = [Device("MAC1", "Name1", "1.1.1.1", True)]
     mock_router_info = RouterInfo("H369A", "V1.0", "V10.C.26.04", "SN1", 100)
     mock_wan_info = WanInfo("8.8.8.8", True, "Up")
     mock_traffic_info = TrafficInfo(1000, 2000, 10, 20)
@@ -90,7 +90,7 @@ async def test_new_device_detection(coordinator):
     mock_traffic = TrafficInfo(1000, 2000, 10, 20)
     
     # 1. First poll: known devices populated
-    coordinator.api.get_devices = AsyncMock(return_value=[Device("MAC1", "Device1", "1.1.1.1")])
+    coordinator.api.get_devices = AsyncMock(return_value=[Device("MAC1", "Device1", "1.1.1.1", True)])
     coordinator.api.get_router_info = AsyncMock(return_value=mock_router_info)
     coordinator.api.get_wan_info = AsyncMock(return_value=mock_wan_info)
     coordinator.api.get_traffic_info = AsyncMock(return_value=mock_traffic)
@@ -103,8 +103,8 @@ async def test_new_device_detection(coordinator):
     
     # 2. Second poll: new device joins
     coordinator.api.get_devices = AsyncMock(return_value=[
-        Device("MAC1", "Device1", "1.1.1.1"),
-        Device("MAC2", "NewDevice", "1.1.1.2")
+        Device("MAC1", "Device1", "1.1.1.1", True),
+        Device("MAC2", "NewDevice", "1.1.1.2", True)
     ])
     
     with patch("time.monotonic", return_value=200.0):
@@ -125,7 +125,7 @@ def test_entity_properties(coordinator):
     mock_wan_info = WanInfo("8.8.8.8", True, "Up")
     mock_traffic_info = TrafficInfo(1000, 2000, 10, 20)
     coordinator.data = ExperiaBoxV10Data(
-        [Device(mac, "Test Device", "192.168.1.10")],
+        [Device(mac, "Test Device", "192.168.1.10", True)],
         mock_router_info,
         mock_wan_info,
         mock_traffic_info,

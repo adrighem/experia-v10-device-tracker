@@ -81,7 +81,8 @@ class ExperiaBoxV10DeviceScannerEntity(ExperiaBoxV10Entity, ScannerEntity):
     @property
     def is_connected(self) -> bool:
         """Return true if the device is connected to the network."""
-        return self._device is not None
+        device = self._device
+        return device.active if device else False
 
     @property
     def source_type(self) -> SourceType:

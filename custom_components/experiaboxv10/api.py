@@ -10,7 +10,7 @@ from aiohttp import ClientSession, ClientTimeout
 
 _LOGGER = logging.getLogger(__name__)
 
-Device = namedtuple("Device", ["mac", "name", "ip"])
+Device = namedtuple("Device", ["mac", "name", "ip", "active"])
 RouterInfo = namedtuple(
     "RouterInfo",
     ["model", "hardware_version", "software_version", "serial_number", "uptime"],
@@ -169,8 +169,9 @@ class ExperiaBoxV10Api:
         for d in status:
             if not isinstance(d, dict):
                 continue
-            if not d.get("Active"):
-                continue
+            
+            # We return all devices, but check Active status
+            active = bool(d.get("Active", False))
 
             tags = str(d.get("Tags", "")).split()
             is_wired = "eth" in tags or "lan" in tags
@@ -181,23 +182,23 @@ class ExperiaBoxV10Api:
             mac = d.get("PhysAddress")
             if mac:
                 results[mac.upper()] = Device(
-                    mac.upper(), str(d.get("Name", "")), str(d.get("IPAddress", ""))
+                    mac.upper(), str(d.get("Name", "")), str(d.get("IPAddress", "")), active
                 )
 
         return list(results.values())
 
     async def get_router_info(self) -> RouterInfo:
         """Get router system information."""
-        # Try sah.Device.Information on root /ws
-        data = await self._request("sah.Device.Information", "get", endpoint="ws")
+        # Try DeviceInfo first as it's confirmed to work on newer firmware
+        data = await self._request("DeviceInfo", "get", endpoint="ws")
         status = data.get("status")
-        if not isinstance(status, dict):
-            # Try without sah. prefix
-            data = await self._request("Device.Information", "get", endpoint="ws")
+        if not isinstance(status, dict) or not status:
+            # Fallback to sah.Device.Information
+            data = await self._request("sah.Device.Information", "get", endpoint="ws")
             status = data.get("status")
             if not isinstance(status, dict):
-                # Try specific endpoint
-                data = await self._request("Device.Information", "get", endpoint="ws/Device/Information:get")
+                # Try without sah. prefix
+                data = await self._request("Device.Information", "get", endpoint="ws")
                 status = data.get("status")
 
         if not isinstance(status, dict):
@@ -235,7 +236,17 @@ class ExperiaBoxV10Api:
 
     async def get_wan_info(self) -> WanInfo:
         """Get WAN connection information."""
-        # First check if it's in Device.Information (common in some firmware)
+        # First check DeviceInfo as it's fastest if available
+        data = await self._request("DeviceInfo", "get", endpoint="ws")
+        status = data.get("status") or {}
+        if isinstance(status, dict) and status.get("ExternalIPAddress"):
+            return WanInfo(
+                external_ip=str(status.get("ExternalIPAddress", "")),
+                connected=str(status.get("DeviceStatus", "")).lower() == "up",
+                link_status=str(status.get("DeviceStatus", "Down")),
+            )
+
+        # Fallback to sah.Device.Information
         data = await self._request("sah.Device.Information", "get", endpoint="ws")
         status = data.get("status") or {}
         if isinstance(status, dict) and status.get("ExternalIPAddress"):
@@ -268,26 +279,22 @@ class ExperiaBoxV10Api:
         return WanInfo("", False, "Down")
 
     async def get_traffic_info(self) -> TrafficInfo:
-        """Get WAN traffic statistics."""
-        endpoints = ["ws/NeMo/Intf/wan:getMIBs", "ws/NeMo/Intf/data:getMIBs", "ws/NeMo:getMIBs"]
-        for endpoint in endpoints:
-            try:
-                data = await self._request(
-                    "wan", "getMIBs", {"mibs": "statistics"}, endpoint=endpoint
-                )
-                stats_mib = self._parse_mib_result(data, ["statistics", "data"])
-                
-                if stats_mib.get("BytesSent") or stats_mib.get("BytesReceived"):
-                    return TrafficInfo(
-                        bytes_sent=int(stats_mib.get("BytesSent", 0) or 0),
-                        bytes_received=int(stats_mib.get("BytesReceived", 0) or 0),
-                        packets_sent=int(stats_mib.get("PacketsSent", 0) or 0),
-                        packets_received=int(stats_mib.get("PacketsReceived", 0) or 0),
-                    )
-            except Exception:
-                continue
-                
-        return TrafficInfo(0, 0, 0, 0)
+        """Get traffic information."""
+        # Use getNetDevStats on ppp_vdata as confirmed by user trace
+        data = await self._request("NeMo.Intf.ppp_vdata", "getNetDevStats", endpoint="ws")
+        status = data.get("status") or {}
+
+        if not isinstance(status, dict) or not status:
+            # Fallback to eth0
+            data = await self._request("NeMo.Intf.eth0", "getNetDevStats", endpoint="ws")
+            status = data.get("status") or {}
+
+        return TrafficInfo(
+            bytes_received=int(status.get("RxBytes", 0) or 0),
+            bytes_sent=int(status.get("TxBytes", 0) or 0),
+            packets_received=int(status.get("RxPackets", 0) or 0),
+            packets_sent=int(status.get("TxPackets", 0) or 0),
+        )
 
     async def reboot(self) -> None:
         """Reboot the router."""
