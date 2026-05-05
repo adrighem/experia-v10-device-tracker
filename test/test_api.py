@@ -89,17 +89,17 @@ async def test_get_wan_info_information_fallback(api, mock_session):
     assert info.connected is True
 
 @pytest.mark.asyncio
-async def test_get_traffic_info_nested_data(api, mock_session):
-    """Test get_traffic_info with nested 'data' key."""
+async def test_get_traffic_info(api, mock_session):
+    """Test get_traffic_info using getNetDevStats."""
     mock_login_resp = create_mock_response(status=200, json_data={"data": {"contextID": "abc"}})
     mock_data_resp = create_mock_response(
         status=200,
         json_data={
-            "data": {
-                "statistics": {
-                    "BytesSent": 500,
-                    "BytesReceived": 600
-                }
+            "status": {
+                "TxBytes": 500,
+                "RxBytes": 600,
+                "TxPackets": 50,
+                "RxPackets": 60
             }
         }
     )
@@ -107,3 +107,26 @@ async def test_get_traffic_info_nested_data(api, mock_session):
     info = await api.get_traffic_info()
     assert info.bytes_sent == 500
     assert info.bytes_received == 600
+    assert info.packets_sent == 50
+    assert info.packets_received == 60
+
+@pytest.mark.asyncio
+async def test_get_traffic_info_fallback(api, mock_session):
+    """Test get_traffic_info fallback from ppp_vdata to eth0."""
+    mock_login_resp = create_mock_response(status=200, json_data={"data": {"contextID": "abc"}})
+    # First call (ppp_vdata) returns empty
+    mock_data_empty = create_mock_response(status=200, json_data={"status": {}})
+    # Second call (eth0) returns data
+    mock_data_resp = create_mock_response(
+        status=200,
+        json_data={
+            "status": {
+                "TxBytes": 1000,
+                "RxBytes": 2000
+            }
+        }
+    )
+    mock_session.post.side_effect = [mock_login_resp, mock_data_empty, mock_data_resp]
+    info = await api.get_traffic_info()
+    assert info.bytes_sent == 1000
+    assert info.bytes_received == 2000
