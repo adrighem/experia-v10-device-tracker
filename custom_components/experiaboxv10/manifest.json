@@ -11,5 +11,5 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/adrighem/experia-v10-device-tracker/issues",
   "requirements": [],
-  "version": "3.0.0"
+  "version": "3.0.1"
 }

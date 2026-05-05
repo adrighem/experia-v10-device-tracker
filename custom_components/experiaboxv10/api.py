@@ -99,7 +99,7 @@ class ExperiaBoxV10Api:
             "parameters": parameters or {},
         }
 
-        _LOGGER.debug("Requesting %s.%s via %s", service, method, endpoint)
+        _LOGGER.debug("Requesting %s.%s via %s", service, method, url)
         try:
             async with self._session.post(url, json=payload, headers=headers) as resp:
                 if resp.status in (401, 403):
@@ -158,12 +158,16 @@ class ExperiaBoxV10Api:
 
     async def get_router_info(self) -> RouterInfo:
         """Get router system information."""
-        # Try both sah.Device.Information and Device.Information
-        for service_name in ["sah.Device.Information", "Device.Information"]:
+        # Try multiple common endpoints and service names
+        targets = [
+            ("sah.Device.Information", "get", "Device/Information:get"),
+            ("Device.Information", "get", "Device/Information:get"),
+            ("Device.Information", "get", "NeMo/Intf/device:getMIBs"),
+        ]
+        
+        for service, method, endpoint in targets:
             try:
-                data = await self._request(
-                    service_name, "get", endpoint="Device/Information:get"
-                )
+                data = await self._request(service, method, endpoint=endpoint)
                 status = data.get("status")
                 if isinstance(status, dict) and status.get("UpTime") is not None:
                     return RouterInfo(
@@ -178,7 +182,7 @@ class ExperiaBoxV10Api:
         
         return RouterInfo("Experia Box V10", "", "", "", 0)
 
-    def _parse_mib_result(self, data: dict, mib_name: str) -> dict:
+    def _parse_mib_result(self, data: dict, mib_names: list[str]) -> dict:
         """Extract MIB data from status dictionary or list."""
         status = data.get("status")
         if isinstance(status, list) and status:
@@ -186,48 +190,67 @@ class ExperiaBoxV10Api:
         if not isinstance(status, dict):
             return {}
         
-        mib_data = status.get(mib_name)
-        if isinstance(mib_data, list) and mib_data:
-            return mib_data[0]
-        if isinstance(mib_data, dict):
-            return mib_data
-        return {}
+        # Sometimes it's directly in status, sometimes nested under MIB name
+        for name in mib_names:
+            mib_data = status.get(name)
+            if isinstance(mib_data, list) and mib_data:
+                return mib_data[0]
+            if isinstance(mib_data, dict):
+                return mib_data
+            
+        # Fallback: check if the fields are directly in status
+        return status
 
     async def get_wan_info(self) -> WanInfo:
         """Get WAN connection information."""
-        data = await self._request(
-            "wan", "getMIBs", {"mibs": "wan"}, endpoint="NeMo/Intf/wan:getMIBs"
-        )
-        wan_mib = self._parse_mib_result(data, "wan")
-
-        connected_status = str(wan_mib.get("ConnectionStatus", "")).lower()
-        # Some routers return 'Up', 'Connected', 'Bound', etc.
-        is_connected = connected_status in ("connected", "up", "bound", "connected")
-        
-        return WanInfo(
-            external_ip=str(wan_mib.get("ExternalIPAddress", "")),
-            connected=is_connected,
-            link_status=str(wan_mib.get("LinkStatus", "Down")),
-        )
+        # Try both 'wan' and 'data' interfaces
+        endpoints = ["NeMo/Intf/wan:getMIBs", "NeMo/Intf/data:getMIBs"]
+        for endpoint in endpoints:
+            try:
+                data = await self._request(
+                    "wan", "getMIBs", {"mibs": "wan"}, endpoint=endpoint
+                )
+                wan_mib = self._parse_mib_result(data, ["wan", "data"])
+                
+                if wan_mib.get("ExternalIPAddress") or wan_mib.get("ConnectionStatus"):
+                    connected_status = str(wan_mib.get("ConnectionStatus", "")).lower()
+                    is_connected = connected_status in ("connected", "up", "bound", "up-active")
+                    return WanInfo(
+                        external_ip=str(wan_mib.get("ExternalIPAddress", "")),
+                        connected=is_connected,
+                        link_status=str(wan_mib.get("LinkStatus", "Down")),
+                    )
+            except Exception:
+                continue
+                
+        return WanInfo("", False, "Down")
 
     async def get_traffic_info(self) -> TrafficInfo:
         """Get WAN traffic statistics."""
-        data = await self._request(
-            "wan", "getMIBs", {"mibs": "statistics"}, endpoint="NeMo/Intf/wan:getMIBs"
-        )
-        stats_mib = self._parse_mib_result(data, "statistics")
-
-        return TrafficInfo(
-            bytes_sent=int(stats_mib.get("BytesSent", 0) or 0),
-            bytes_received=int(stats_mib.get("BytesReceived", 0) or 0),
-            packets_sent=int(stats_mib.get("PacketsSent", 0) or 0),
-            packets_received=int(stats_mib.get("PacketsReceived", 0) or 0),
-        )
+        endpoints = ["NeMo/Intf/wan:getMIBs", "NeMo/Intf/data:getMIBs"]
+        for endpoint in endpoints:
+            try:
+                data = await self._request(
+                    "wan", "getMIBs", {"mibs": "statistics"}, endpoint=endpoint
+                )
+                stats_mib = self._parse_mib_result(data, ["statistics", "data"])
+                
+                if stats_mib.get("BytesSent") or stats_mib.get("BytesReceived"):
+                    return TrafficInfo(
+                        bytes_sent=int(stats_mib.get("BytesSent", 0) or 0),
+                        bytes_received=int(stats_mib.get("BytesReceived", 0) or 0),
+                        packets_sent=int(stats_mib.get("PacketsSent", 0) or 0),
+                        packets_received=int(stats_mib.get("PacketsReceived", 0) or 0),
+                    )
+            except Exception:
+                continue
+                
+        return TrafficInfo(0, 0, 0, 0)
 
     async def reboot(self) -> None:
         """Reboot the router."""
         await self._request(
-            "sah.Device.Information", "reboot", endpoint="Device/Information:reboot"
+            "Device.Information", "reboot", endpoint="Device/Information:reboot"
         )
 
     async def get_guest_wifi_enabled(self) -> bool:
