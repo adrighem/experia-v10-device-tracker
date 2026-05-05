@@ -1,4 +1,4 @@
-# Experia Box V10 Device Tracker
+# ExperiaBox v10 Integration
 
 ## Development Workflow
 

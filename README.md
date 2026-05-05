@@ -1,17 +1,31 @@
-# Experia V10 Device Tracker for Home Assistant
+# ExperiaBox v10 Integration for Home Assistant
 
-This module is a device tracker for Home Assistant. It allows customers of KPN and Telfort to
-enable presence detection with their ZTE H369A (Experia V10) box in Home Assistant.
+This is a comprehensive Home Assistant integration for the ZTE H369A (Experia Box v10) router, used by KPN and Telfort customers in the Netherlands. It goes beyond simple device tracking to provide full router management, network health monitoring, and real-time traffic statistics.
 
-**Note:** This is a modernized fork of the original [experia-v10-device-tracker](https://github.com/kadima-tech/experia-v10-device-tracker).
-It has been refactored to follow the latest Home Assistant integration standards, including UI-based configuration (Config Flow) and asynchronous data fetching.
+**Note:** This is a modernized and significantly expanded fork of the original [experia-v10-device-tracker](https://github.com/kadima-tech/experia-v10-device-tracker). It follows the latest Home Assistant standards, including UI-based configuration (Config Flow) and efficient asynchronous data fetching.
 
 ## Features
 
-- **UI-based Configuration:** No more editing `configuration.yaml`. Setup everything via the Home Assistant Integrations UI.
-- **Asynchronous:** Uses `aiohttp` for non-blocking communication with the router.
-- **Modern Entity Model:** Each tracked device is now a proper `device_tracker` entity in Home Assistant.
-- **Auto-Discovery:** New devices are automatically added to Home Assistant as they are discovered by the router.
+- **Comprehensive Device Tracking:** Monitor presence of all LAN and WLAN connected devices.
+- **Network Health & Diagnostics:**
+  - External IP Address tracking.
+  - WAN Connectivity status.
+  - WAN Link Status (Up/Down).
+  - Router Uptime.
+- **Real-time Traffic Statistics:**
+  - Total Data Received/Sent (byte-level accuracy).
+  - Live Download/Upload Speeds (throughput calculation).
+  - Active Client Count.
+- **Router Management:**
+  - Remote Reboot functionality.
+  - Guest Wi-Fi toggle control.
+- **Security Alerts:**
+  - Automatic detection of new devices joining the network.
+  - "Last New Device" sensor with MAC and name information.
+- **Modern Architecture:**
+  - **UI-based Configuration:** Setup via the Home Assistant Integrations UI.
+  - **Asynchronous:** Built on `aiohttp` for non-blocking communication.
+  - **Organized Entities:** All entities are logically grouped under a single "H369A" device.
 
 ## Installation
 
@@ -20,7 +34,7 @@ It has been refactored to follow the latest Home Assistant integration standards
 1. Open HACS in your Home Assistant.
 2. Click on "Integrations".
 3. Click on the three dots in the top right corner and select "Custom repositories".
-4. Add this repository URL: `https://github.com/kadima-tech/experia-v10-device-tracker` and category "Integration".
+4. Add this repository URL: `https://github.com/adrighem/experia-v10-device-tracker` and category "Integration".
 5. Find "ExperiaBox v10" and click "Download".
 6. Restart Home Assistant.
 
