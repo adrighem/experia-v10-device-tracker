@@ -1,5 +1,9 @@
 # KPN Experia Box v10 Integration for Home Assistant
 
+<p align="center">
+  <img src="custom_components/experiaboxv10/brand/icon.png" width="150" alt="KPN Experia Box v10 Logo">
+</p>
+
 This is a comprehensive Home Assistant integration for the ZTE H369A (Experia Box v10) router, primarily used for [KPN Internet](https://www.kpn.com/internet) connections in the Netherlands (also used by Telfort). It goes beyond simple device tracking to provide full router management, network health monitoring, and real-time traffic statistics.
 
 **Note:** This is a modernized and significantly expanded fork of the original [experia-v10-device-tracker](https://github.com/kadima-tech/experia-v10-device-tracker). It follows the latest Home Assistant standards, including UI-based configuration (Config Flow) and efficient asynchronous data fetching.
