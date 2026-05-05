@@ -6,10 +6,10 @@
     "@adrighem"
   ],
   "config_flow": true,
-  "documentation": "https://github.com/adrighem/experia-v10-device-tracker",
+  "documentation": "https://github.com/adrighem/kpn-experia-v10-integration",
   "integration_type": "device",
   "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/adrighem/experia-v10-device-tracker/issues",
+  "issue_tracker": "https://github.com/adrighem/kpn-experia-v10-integration/issues",
   "requirements": [],
   "version": "3.0.1"
 }

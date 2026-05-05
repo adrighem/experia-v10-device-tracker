@@ -34,7 +34,7 @@ This is a comprehensive Home Assistant integration for the ZTE H369A (Experia Bo
 1. Open HACS in your Home Assistant.
 2. Click on "Integrations".
 3. Click on the three dots in the top right corner and select "Custom repositories".
-4. Add this repository URL: `https://github.com/adrighem/experia-v10-device-tracker` and category "Integration".
+4. Add this repository URL: `https://github.com/adrighem/kpn-experia-v10-integration` and category "Integration".
 5. Find "ExperiaBox v10" and click "Download".
 6. Restart Home Assistant.
 
