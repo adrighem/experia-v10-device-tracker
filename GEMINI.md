@@ -1,4 +1,7 @@
-# ExperiaBox v10 Integration
+# KPN Experia Box v10 Integration
+
+## Core Mandates
+- **GitHub Actions:** Always check GitHub Actions on every commit to ensure all tests and linting execute successfully. Never leave the master branch in a failing state.
 
 ## Development Workflow
 
