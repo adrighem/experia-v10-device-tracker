@@ -61,27 +61,23 @@ class ExperiaBoxV10Api:
                 "User-Agent": self._user_agent,
             }
 
-            _LOGGER.error("ExperiaBox Attempting to get context from %s", login_url)
+            _LOGGER.debug("Attempting to get context from %s", login_url)
             timeout = ClientTimeout(total=5)
             try:
                 async with self._session.post(
                     login_url, json=login_payload, headers=headers, timeout=timeout
                 ) as resp:
-                    _LOGGER.error("ExperiaBox login response status: %s", resp.status)
                     # If /ws fails, fallback to lan:getMIBs for older firmware
                     if resp.status != 200:
-                        _LOGGER.error("ExperiaBox Login to /ws failed, trying fallback")
+                        _LOGGER.debug("Login to /ws failed, trying fallback")
                         login_url = f"http://{self._host}/ws/NeMo/Intf/lan:getMIBs"
                         async with self._session.post(
                             login_url, json=login_payload, headers=headers, timeout=timeout
                         ) as resp_fb:
-                            _LOGGER.error("ExperiaBox fallback login response status: %s", resp_fb.status)
                             resp_fb.raise_for_status()
                             data = await resp_fb.json(content_type=None)
                     else:
                         data = await resp.json(content_type=None)
-                    
-                    _LOGGER.error("ExperiaBox login response data: %s", str(data)[:200])
 
                 try:
                     # The response could have "data" or "status" depending on firmware versions
@@ -90,18 +86,17 @@ class ExperiaBoxV10Api:
                     elif "status" in data and isinstance(data["status"], dict) and "contextID" in data["status"]:
                         self._context_id = data["status"]["contextID"]
                     else:
-                        _LOGGER.error("ExperiaBox Failed to parse contextID. Raw response: %s", data)
+                        _LOGGER.error("Failed to parse contextID. Raw response: %s", data)
                         raise KeyError("contextID not found in response")
                         
                     cookie_header = resp.headers.get("set-cookie", "")
                     self._cookie = cookie_header.split(";")[0] if cookie_header else ""
-                    _LOGGER.error("ExperiaBox successfully got contextID: %s", self._context_id)
                     return self._context_id, self._cookie
                 except KeyError as err:
-                    _LOGGER.error("ExperiaBox Context key error: %s, raw response: %s", err, data)
+                    _LOGGER.error("Context key error: %s, raw response: %s", err, data)
                     raise
             except Exception as err:
-                _LOGGER.error("ExperiaBox Failed to get context: %s", err)
+                _LOGGER.debug("Failed to get context: %s", err)
                 raise
 
     async def _request(
@@ -112,7 +107,6 @@ class ExperiaBoxV10Api:
         endpoint: str = "ws/NeMo/Intf/lan:getMIBs",
     ) -> dict[str, Any]:
         """Make a request to the router API."""
-        _LOGGER.error("ExperiaBox _request started for %s.%s", service, method)
         if not self._context_id or self._cookie is None:
             await self._get_context()
 
@@ -134,34 +128,30 @@ class ExperiaBoxV10Api:
             "parameters": parameters or {},
         }
         try:
-            _LOGGER.error("ExperiaBox sending request to %s with payload %s", url, payload)
             async with self._session.post(url, headers=headers, json=payload) as resp:
-                _LOGGER.error("ExperiaBox response status: %s", resp.status)
                 if resp.status in (401, 403):
                     # Session expired, re-authenticate
-                    _LOGGER.error("Session expired (HTTP %s), re-authenticating", resp.status)
+                    _LOGGER.debug("Session expired (HTTP %s), re-authenticating", resp.status)
                     self._context_id = None
                     self._cookie = None
                     return await self._request(service, method, parameters, endpoint)
                 
                 resp.raise_for_status()
                 data = await resp.json(content_type=None)
-                _LOGGER.error("ExperiaBox response data: %s", str(data)[:200])
                 
                 # Check for application-level errors that might indicate an expired session
                 if isinstance(data, dict) and "error" in data:
                     error_code = data.get("error")
-                    _LOGGER.error("ExperiaBox received API error: %s", error_code)
                     # Some SAH implementations return 196618 for "not found" which can happen if the 
                     # context is invalid on a specific endpoint
                     if error_code == 196618 and service != "DeviceInfo":
-                        _LOGGER.error("Received error 196618, clearing session to force re-auth")
+                        _LOGGER.debug("Received error 196618, clearing session to force re-auth")
                         self._context_id = None
                         self._cookie = None
                         
                 return data if isinstance(data, dict) else {}
         except Exception as err:
-            _LOGGER.error("Request to %s.%s failed: %s", service, method, err)
+            _LOGGER.debug("Request to %s.%s failed: %s", service, method, err)
             self._context_id = None
             self._cookie = None
             raise
