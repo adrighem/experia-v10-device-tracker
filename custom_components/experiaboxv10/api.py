@@ -36,19 +36,42 @@ class ExperiaBoxV10Api:
 
     async def _get_context(self) -> tuple[str, str]:
         """Get context ID and cookie for the JSON API."""
-        # Standard SAH API uses /ws for everything
+        from aiohttp import ClientTimeout
+
         login_url = f"http://{self._host}/ws"
-        payload = {
-            "service": "ssw.Server.Context",
+        login_payload = {
+            "service": "sah.Device.Information",
             "method": "createContext",
             "parameters": {
                 "applicationName": "webui",
-                "username": self._username,
+                "username": self._username.lower(),
                 "password": self._password,
             },
         }
-        async with self._session.post(login_url, json=payload) as resp:
-            data = await resp.json(content_type=None)
+        headers = {
+            "Content-Type": "application/x-sah-ws-4-call+json",
+            "Authorization": "X-Sah-Login",
+            "User-Agent": self._user_agent,
+        }
+
+        _LOGGER.debug("Attempting to get context from %s", login_url)
+        timeout = ClientTimeout(total=5)
+        try:
+            async with self._session.post(
+                login_url, json=login_payload, headers=headers, timeout=timeout
+            ) as resp:
+                # If /ws fails, fallback to lan:getMIBs for older firmware
+                if resp.status != 200:
+                    _LOGGER.debug("Login to /ws failed, trying fallback")
+                    login_url = f"http://{self._host}/ws/NeMo/Intf/lan:getMIBs"
+                    async with self._session.post(
+                        login_url, json=login_payload, headers=headers, timeout=timeout
+                    ) as resp_fb:
+                        resp_fb.raise_for_status()
+                        data = await resp_fb.json(content_type=None)
+                else:
+                    data = await resp.json(content_type=None)
+
             try:
                 # The response could have "data" or "status" depending on firmware versions
                 if "data" in data and "contextID" in data["data"]:
@@ -59,11 +82,15 @@ class ExperiaBoxV10Api:
                     _LOGGER.error("Failed to parse contextID. Raw response: %s", data)
                     raise KeyError("contextID not found in response")
                     
-                self._cookie = resp.headers.get("Set-Cookie")
+                cookie_header = resp.headers.get("set-cookie", "")
+                self._cookie = cookie_header.split(";")[0] if cookie_header else ""
                 return self._context_id, self._cookie
             except KeyError as err:
                 _LOGGER.error("Context key error: %s, raw response: %s", err, data)
                 raise
+        except Exception as err:
+            _LOGGER.debug("Failed to get context: %s", err)
+            raise
 
     async def _request(
         self,
