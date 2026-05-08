@@ -49,9 +49,21 @@ class ExperiaBoxV10Api:
         }
         async with self._session.post(login_url, json=payload) as resp:
             data = await resp.json(content_type=None)
-            self._context_id = data["data"]["contextID"]
-            self._cookie = resp.headers.get("Set-Cookie")
-            return self._context_id, self._cookie
+            try:
+                # The response could have "data" or "status" depending on firmware versions
+                if "data" in data and "contextID" in data["data"]:
+                    self._context_id = data["data"]["contextID"]
+                elif "status" in data and isinstance(data["status"], dict) and "contextID" in data["status"]:
+                    self._context_id = data["status"]["contextID"]
+                else:
+                    _LOGGER.error("Failed to parse contextID. Raw response: %s", data)
+                    raise KeyError("contextID not found in response")
+                    
+                self._cookie = resp.headers.get("Set-Cookie")
+                return self._context_id, self._cookie
+            except KeyError as err:
+                _LOGGER.error("Context key error: %s, raw response: %s", err, data)
+                raise
 
     async def _request(
         self,
