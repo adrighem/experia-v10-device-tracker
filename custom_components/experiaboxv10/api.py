@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import namedtuple
+import asyncio
 import logging
 from typing import Any
 from aiohttp import ClientSession
@@ -33,69 +34,75 @@ class ExperiaBoxV10Api:
         self._context_id: str | None = None
         self._cookie: str | None = None
         self._user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        self._login_lock = asyncio.Lock()
 
     async def _get_context(self) -> tuple[str, str]:
         """Get context ID and cookie for the JSON API."""
-        from aiohttp import ClientTimeout
-
-        login_url = f"http://{self._host}/ws"
-        login_payload = {
-            "service": "sah.Device.Information",
-            "method": "createContext",
-            "parameters": {
-                "applicationName": "webui",
-                "username": self._username.lower(),
-                "password": self._password,
-            },
-        }
-        headers = {
-            "Content-Type": "application/x-sah-ws-4-call+json",
-            "Authorization": "X-Sah-Login",
-            "User-Agent": self._user_agent,
-        }
-
-        _LOGGER.error("ExperiaBox Attempting to get context from %s", login_url)
-        timeout = ClientTimeout(total=5)
-        try:
-            async with self._session.post(
-                login_url, json=login_payload, headers=headers, timeout=timeout
-            ) as resp:
-                _LOGGER.error("ExperiaBox login response status: %s", resp.status)
-                # If /ws fails, fallback to lan:getMIBs for older firmware
-                if resp.status != 200:
-                    _LOGGER.error("ExperiaBox Login to /ws failed, trying fallback")
-                    login_url = f"http://{self._host}/ws/NeMo/Intf/lan:getMIBs"
-                    async with self._session.post(
-                        login_url, json=login_payload, headers=headers, timeout=timeout
-                    ) as resp_fb:
-                        _LOGGER.error("ExperiaBox fallback login response status: %s", resp_fb.status)
-                        resp_fb.raise_for_status()
-                        data = await resp_fb.json(content_type=None)
-                else:
-                    data = await resp.json(content_type=None)
-                
-                _LOGGER.error("ExperiaBox login response data: %s", str(data)[:200])
-
-            try:
-                # The response could have "data" or "status" depending on firmware versions
-                if "data" in data and "contextID" in data["data"]:
-                    self._context_id = data["data"]["contextID"]
-                elif "status" in data and isinstance(data["status"], dict) and "contextID" in data["status"]:
-                    self._context_id = data["status"]["contextID"]
-                else:
-                    _LOGGER.error("ExperiaBox Failed to parse contextID. Raw response: %s", data)
-                    raise KeyError("contextID not found in response")
-                    
-                cookie_header = resp.headers.get("set-cookie", "")
-                self._cookie = cookie_header.split(";")[0] if cookie_header else ""
-                _LOGGER.error("ExperiaBox successfully got contextID: %s", self._context_id)
+        async with self._login_lock:
+            # Check if another task already got the context while we were waiting
+            if self._context_id and self._cookie:
                 return self._context_id, self._cookie
-            except KeyError as err:
-                _LOGGER.error("ExperiaBox Context key error: %s, raw response: %s", err, data)
+                
+            from aiohttp import ClientTimeout
+
+            login_url = f"http://{self._host}/ws"
+            login_payload = {
+                "service": "sah.Device.Information",
+                "method": "createContext",
+                "parameters": {
+                    "applicationName": "webui",
+                    "username": self._username.lower(),
+                    "password": self._password,
+                },
+            }
+            headers = {
+                "Content-Type": "application/x-sah-ws-4-call+json",
+                "Authorization": "X-Sah-Login",
+                "User-Agent": self._user_agent,
+            }
+
+            _LOGGER.error("ExperiaBox Attempting to get context from %s", login_url)
+            timeout = ClientTimeout(total=5)
+            try:
+                async with self._session.post(
+                    login_url, json=login_payload, headers=headers, timeout=timeout
+                ) as resp:
+                    _LOGGER.error("ExperiaBox login response status: %s", resp.status)
+                    # If /ws fails, fallback to lan:getMIBs for older firmware
+                    if resp.status != 200:
+                        _LOGGER.error("ExperiaBox Login to /ws failed, trying fallback")
+                        login_url = f"http://{self._host}/ws/NeMo/Intf/lan:getMIBs"
+                        async with self._session.post(
+                            login_url, json=login_payload, headers=headers, timeout=timeout
+                        ) as resp_fb:
+                            _LOGGER.error("ExperiaBox fallback login response status: %s", resp_fb.status)
+                            resp_fb.raise_for_status()
+                            data = await resp_fb.json(content_type=None)
+                    else:
+                        data = await resp.json(content_type=None)
+                    
+                    _LOGGER.error("ExperiaBox login response data: %s", str(data)[:200])
+
+                try:
+                    # The response could have "data" or "status" depending on firmware versions
+                    if "data" in data and "contextID" in data["data"]:
+                        self._context_id = data["data"]["contextID"]
+                    elif "status" in data and isinstance(data["status"], dict) and "contextID" in data["status"]:
+                        self._context_id = data["status"]["contextID"]
+                    else:
+                        _LOGGER.error("ExperiaBox Failed to parse contextID. Raw response: %s", data)
+                        raise KeyError("contextID not found in response")
+                        
+                    cookie_header = resp.headers.get("set-cookie", "")
+                    self._cookie = cookie_header.split(";")[0] if cookie_header else ""
+                    _LOGGER.error("ExperiaBox successfully got contextID: %s", self._context_id)
+                    return self._context_id, self._cookie
+                except KeyError as err:
+                    _LOGGER.error("ExperiaBox Context key error: %s, raw response: %s", err, data)
+                    raise
+            except Exception as err:
+                _LOGGER.error("ExperiaBox Failed to get context: %s", err)
                 raise
-        except Exception as err:
-            _LOGGER.error("ExperiaBox Failed to get context: %s", err)
-            raise
 
     async def _request(
         self,
