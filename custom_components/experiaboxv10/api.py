@@ -40,11 +40,11 @@ class ExperiaBoxV10Api:
 
         login_url = f"http://{self._host}/ws"
         login_payload = {
-            "service": "ssw.Server.Context",
+            "service": "sah.Device.Information",
             "method": "createContext",
             "parameters": {
                 "applicationName": "webui",
-                "username": self._username,
+                "username": self._username.lower(),
                 "password": self._password,
             },
         }
