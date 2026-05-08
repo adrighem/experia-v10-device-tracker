@@ -21,17 +21,11 @@ from .coordinator import ExperiaBoxV10Coordinator, ExperiaBoxV10Data
 from .entity import ExperiaBoxV10Entity
 
 
+@dataclass(kw_only=True, frozen=True)
 class ExperiaBoxV10BinarySensorEntityDescription(BinarySensorEntityDescription):
     """Class describing ExperiaBox v10 binary sensor entities."""
 
-    def __init__(
-        self,
-        is_on_fn: Callable[[ExperiaBoxV10Data], bool | None],
-        **kwargs: Any,
-    ) -> None:
-        """Initialize the binary sensor description."""
-        super().__init__(**kwargs)
-        self.is_on_fn = is_on_fn
+    is_on_fn: Callable[[ExperiaBoxV10Data], bool | None]
 
 
 BINARY_SENSOR_TYPES: tuple[ExperiaBoxV10BinarySensorEntityDescription, ...] = (

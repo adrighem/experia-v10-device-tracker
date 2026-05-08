@@ -18,21 +18,13 @@ from .coordinator import ExperiaBoxV10Coordinator, ExperiaBoxV10Data
 from .entity import ExperiaBoxV10Entity
 
 
+@dataclass(kw_only=True, frozen=True)
 class ExperiaBoxV10SwitchEntityDescription(SwitchEntityDescription):
     """Class describing ExperiaBox v10 switch entities."""
 
-    def __init__(
-        self,
-        is_on_fn: Callable[[ExperiaBoxV10Data], bool | None],
-        turn_on_fn: Callable[[ExperiaBoxV10Api], Coroutine[Any, Any, None]],
-        turn_off_fn: Callable[[ExperiaBoxV10Api], Coroutine[Any, Any, None]],
-        **kwargs: Any,
-    ) -> None:
-        """Initialize the switch description."""
-        super().__init__(**kwargs)
-        self.is_on_fn = is_on_fn
-        self.turn_on_fn = turn_on_fn
-        self.turn_off_fn = turn_off_fn
+    is_on_fn: Callable[[ExperiaBoxV10Data], bool | None]
+    turn_on_fn: Callable[[ExperiaBoxV10Api], Coroutine[Any, Any, None]]
+    turn_off_fn: Callable[[ExperiaBoxV10Api], Coroutine[Any, Any, None]]
 
 
 SWITCH_TYPES: tuple[ExperiaBoxV10SwitchEntityDescription, ...] = (

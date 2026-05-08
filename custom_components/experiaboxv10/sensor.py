@@ -22,19 +22,12 @@ from .coordinator import ExperiaBoxV10Coordinator, ExperiaBoxV10Data
 from .entity import ExperiaBoxV10Entity
 
 
+@dataclass(kw_only=True, frozen=True)
 class ExperiaBoxV10SensorEntityDescription(SensorEntityDescription):
     """Class describing ExperiaBox v10 sensor entities."""
 
-    def __init__(
-        self,
-        value_fn: Callable[[ExperiaBoxV10Data], str | int | float | None],
-        attributes_fn: Callable[[ExperiaBoxV10Data], dict[str, Any]] | None = None,
-        **kwargs: Any,
-    ) -> None:
-        """Initialize the sensor description."""
-        super().__init__(**kwargs)
-        self.value_fn = value_fn
-        self.attributes_fn = attributes_fn
+    value_fn: Callable[[ExperiaBoxV10Data], str | int | float | None]
+    attributes_fn: Callable[[ExperiaBoxV10Data], dict[str, Any]] | None = None
 
 
 SENSOR_TYPES: tuple[ExperiaBoxV10SensorEntityDescription, ...] = (

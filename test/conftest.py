@@ -3,6 +3,7 @@ import sys
 from unittest.mock import MagicMock
 from types import ModuleType
 from typing import Any
+from dataclasses import dataclass
 
 # Create dummy modules
 def mock_module(name):
@@ -38,6 +39,10 @@ homeassistant.const.CONF_PASSWORD = "password"
 class UnitOfInformation:
     BYTES = "B"
 homeassistant.const.UnitOfInformation = UnitOfInformation
+
+class UnitOfTime:
+    SECONDS = "s"
+homeassistant.const.UnitOfTime = UnitOfTime
 
 class UnitOfDataRate:
     BYTES_PER_SECOND = "B/s"
@@ -82,10 +87,15 @@ class SensorEntity(MockEntity):
     pass
 homeassistant.components.sensor.SensorEntity = SensorEntity
 
+@dataclass(frozen=True)
 class SensorEntityDescription:
-    def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
+    key: str
+    name: str = None
+    icon: str = None
+    device_class: str = None
+    state_class: str = None
+    native_unit_of_measurement: str = None
+    entity_category: str = None
 homeassistant.components.sensor.SensorEntityDescription = SensorEntityDescription
 
 class BinarySensorDeviceClass:
@@ -97,30 +107,37 @@ class BinarySensorEntity(MockEntity):
     pass
 homeassistant.components.binary_sensor.BinarySensorEntity = BinarySensorEntity
 
+@dataclass(frozen=True)
 class BinarySensorEntityDescription:
-    def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
+    key: str
+    name: str = None
+    icon: str = None
+    device_class: str = None
+    entity_category: str = None
 homeassistant.components.binary_sensor.BinarySensorEntityDescription = BinarySensorEntityDescription
 
 class ButtonEntity(MockEntity):
     pass
 homeassistant.components.button.ButtonEntity = ButtonEntity
 
+@dataclass(frozen=True)
 class ButtonEntityDescription:
-    def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
+    key: str
+    name: str = None
+    icon: str = None
+    entity_category: str = None
 homeassistant.components.button.ButtonEntityDescription = ButtonEntityDescription
 
 class SwitchEntity(MockEntity):
     pass
 homeassistant.components.switch.SwitchEntity = SwitchEntity
 
+@dataclass(frozen=True)
 class SwitchEntityDescription:
-    def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
+    key: str
+    name: str = None
+    icon: str = None
+    entity_category: str = None
 homeassistant.components.switch.SwitchEntityDescription = SwitchEntityDescription
 
 class DataUpdateCoordinator:

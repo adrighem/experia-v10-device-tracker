@@ -18,17 +18,11 @@ from .coordinator import ExperiaBoxV10Coordinator
 from .entity import ExperiaBoxV10Entity
 
 
+@dataclass(kw_only=True, frozen=True)
 class ExperiaBoxV10ButtonEntityDescription(ButtonEntityDescription):
     """Class describing ExperiaBox v10 button entities."""
 
-    def __init__(
-        self,
-        press_fn: Callable[[ExperiaBoxV10Api], Coroutine[Any, Any, None]],
-        **kwargs: Any,
-    ) -> None:
-        """Initialize the button description."""
-        super().__init__(**kwargs)
-        self.press_fn = press_fn
+    press_fn: Callable[[ExperiaBoxV10Api], Coroutine[Any, Any, None]]
 
 
 BUTTON_TYPES: tuple[ExperiaBoxV10ButtonEntityDescription, ...] = (
