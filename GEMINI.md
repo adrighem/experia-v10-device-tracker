@@ -5,6 +5,14 @@
 
 ## Development Workflow
 
+### Test-Driven Development (TDD) Process
+To maintain the high quality and test coverage of this integration, we strictly adhere to a Test-Driven Development workflow when adding new features or fixing bugs:
+1.  **Write the Test First:** Before making any changes to the component's codebase (`custom_components/experiaboxv10/*.py`), create a test case in the `test/` directory that explicitly tests the desired behavior or reproduces the bug.
+2.  **Verify Failure:** Run the test suite and verify that the newly added test fails as expected. This confirms the test is valid and the feature/fix does not yet exist.
+3.  **Implement the Minimum Code:** Write the simplest possible code in the component to make the test pass. Focus purely on satisfying the test requirements.
+4.  **Verify Success:** Run the entire test suite (`PYTHONPATH=. uv run --with aiohttp --with voluptuous pytest`). All tests, including the new one, must pass.
+5.  **Refactor (Optional):** Once tests pass, review the code for clarity, duplication, and architectural elegance (e.g., extracting fat methods, using declarative configurations). Ensure tests still pass after refactoring.
+
 ### Testing and Reproduction
 To ensure robust dependency management and avoid environment conflicts, use `uv` for running tests and reproduction scripts.
 

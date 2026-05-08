@@ -70,6 +70,53 @@ class ExperiaBoxV10Coordinator(DataUpdateCoordinator[ExperiaBoxV10Data]):
         self._last_new_device_time: float | None = None
         self._last_new_device_info: str | None = None
 
+    def _calculate_throughput(self, current_time: float, current_traffic: TrafficInfo) -> tuple[float, float]:
+        """Calculate download and upload throughput."""
+        throughput_down = 0.0
+        throughput_up = 0.0
+
+        if self._last_traffic_info and self._last_traffic_time:
+            time_delta = current_time - self._last_traffic_time
+            if time_delta > 0:
+                bytes_down_delta = (
+                    current_traffic.bytes_received - self._last_traffic_info.bytes_received
+                )
+                bytes_up_delta = (
+                    current_traffic.bytes_sent - self._last_traffic_info.bytes_sent
+                )
+
+                if bytes_down_delta >= 0 and bytes_up_delta >= 0:
+                    throughput_down = bytes_down_delta / time_delta
+                    throughput_up = bytes_up_delta / time_delta
+
+        self._last_traffic_info = current_traffic
+        self._last_traffic_time = current_time
+        return throughput_down, throughput_up
+
+    def _detect_new_devices(self, current_time: float, devices: list[Device]) -> bool:
+        """Track devices and detect newly connected ones."""
+        current_macs = {device.mac for device in devices}
+        if self._known_macs is None:
+            # First run, just populate known devices
+            self._known_macs = current_macs
+            return False
+            
+        new_macs = current_macs - self._known_macs
+        if new_macs:
+            self._known_macs.update(new_macs)
+            # Find first new device to show in sensor
+            for device in devices:
+                if device.mac in new_macs:
+                    self._last_new_device_info = f"{device.name or device.mac} ({device.mac})"
+                    self._last_new_device_time = current_time
+                    break
+
+        if self._last_new_device_time:
+            # Alert stays active for 5 minutes
+            return current_time - self._last_new_device_time < 300
+            
+        return False
+
     async def _async_update_data(self) -> ExperiaBoxV10Data:
         """Update data via library."""
         try:
@@ -90,49 +137,8 @@ class ExperiaBoxV10Coordinator(DataUpdateCoordinator[ExperiaBoxV10Data]):
             _LOGGER.debug("Successfully fetched data from ExperiaBox v10")
 
             current_time = time.monotonic()
-            
-            # 1. Throughput calculation
-            throughput_down = 0.0
-            throughput_up = 0.0
-
-            if self._last_traffic_info and self._last_traffic_time:
-                time_delta = current_time - self._last_traffic_time
-                if time_delta > 0:
-                    bytes_down_delta = (
-                        traffic_info.bytes_received - self._last_traffic_info.bytes_received
-                    )
-                    bytes_up_delta = (
-                        traffic_info.bytes_sent - self._last_traffic_info.bytes_sent
-                    )
-
-                    if bytes_down_delta >= 0 and bytes_up_delta >= 0:
-                        throughput_down = bytes_down_delta / time_delta
-                        throughput_up = bytes_up_delta / time_delta
-
-            self._last_traffic_info = traffic_info
-            self._last_traffic_time = current_time
-
-            # 2. New device detection
-            current_macs = {device.mac for device in devices}
-            if self._known_macs is None:
-                # First run, just populate known devices
-                self._known_macs = current_macs
-            else:
-                new_macs = current_macs - self._known_macs
-                if new_macs:
-                    self._known_macs.update(new_macs)
-                    # Find first new device to show in sensor
-                    for device in devices:
-                        if device.mac in new_macs:
-                            self._last_new_device_info = f"{device.name or device.mac} ({device.mac})"
-                            self._last_new_device_time = current_time
-                            break
-
-            new_device_detected = False
-            if self._last_new_device_time:
-                # Alert stays active for 5 minutes
-                if current_time - self._last_new_device_time < 300:
-                    new_device_detected = True
+            throughput_down, throughput_up = self._calculate_throughput(current_time, traffic_info)
+            new_device_detected = self._detect_new_devices(current_time, devices)
 
             return ExperiaBoxV10Data(
                 devices,

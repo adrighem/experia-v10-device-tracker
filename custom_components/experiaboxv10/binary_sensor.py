@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from dataclasses import dataclass
+
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
@@ -11,22 +14,39 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from typing import Any
 
 from .const import DOMAIN
-from .coordinator import ExperiaBoxV10Coordinator
+from .coordinator import ExperiaBoxV10Coordinator, ExperiaBoxV10Data
 from .entity import ExperiaBoxV10Entity
 
-BINARY_SENSOR_TYPES: tuple[BinarySensorEntityDescription, ...] = (
-    BinarySensorEntityDescription(
+
+class ExperiaBoxV10BinarySensorEntityDescription(BinarySensorEntityDescription):
+    """Class describing ExperiaBox v10 binary sensor entities."""
+
+    def __init__(
+        self,
+        is_on_fn: Callable[[ExperiaBoxV10Data], bool | None],
+        **kwargs: Any,
+    ) -> None:
+        """Initialize the binary sensor description."""
+        super().__init__(**kwargs)
+        self.is_on_fn = is_on_fn
+
+
+BINARY_SENSOR_TYPES: tuple[ExperiaBoxV10BinarySensorEntityDescription, ...] = (
+    ExperiaBoxV10BinarySensorEntityDescription(
         key="connectivity",
         name="Connectivity",
         device_class=BinarySensorDeviceClass.CONNECTIVITY,
+        is_on_fn=lambda data: data.wan_info.connected,
     ),
-    BinarySensorEntityDescription(
+    ExperiaBoxV10BinarySensorEntityDescription(
         key="new_device_detected",
         name="New Device Detected",
         device_class=BinarySensorDeviceClass.SAFETY,
         entity_category=EntityCategory.DIAGNOSTIC,
+        is_on_fn=lambda data: data.new_device_detected,
     ),
 )
 
@@ -39,21 +59,21 @@ async def async_setup_entry(
     """Set up the ExperiaBox v10 binary sensor."""
     coordinator: ExperiaBoxV10Coordinator = hass.data[DOMAIN][entry.entry_id]
 
-    entities = [
+    async_add_entities(
         ExperiaBoxV10BinarySensor(coordinator, description)
         for description in BINARY_SENSOR_TYPES
-    ]
-
-    async_add_entities(entities)
+    )
 
 
 class ExperiaBoxV10BinarySensor(ExperiaBoxV10Entity, BinarySensorEntity):
     """Represent an ExperiaBox v10 binary sensor."""
 
+    entity_description: ExperiaBoxV10BinarySensorEntityDescription
+
     def __init__(
         self,
         coordinator: ExperiaBoxV10Coordinator,
-        description: BinarySensorEntityDescription,
+        description: ExperiaBoxV10BinarySensorEntityDescription,
     ) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator)
@@ -65,8 +85,4 @@ class ExperiaBoxV10BinarySensor(ExperiaBoxV10Entity, BinarySensorEntity):
     @property
     def is_on(self) -> bool | None:
         """Return true if the binary sensor is on."""
-        if self.entity_description.key == "connectivity":
-            return self.coordinator.data.wan_info.connected
-        if self.entity_description.key == "new_device_detected":
-            return self.coordinator.data.new_device_detected
-        return None
+        return self.entity_description.is_on_fn(self.coordinator.data)

@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
+
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -9,73 +13,99 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory, UnitOfInformation, UnitOfDataRate
+from homeassistant.const import UnitOfInformation
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
-from .coordinator import ExperiaBoxV10Coordinator
+from .coordinator import ExperiaBoxV10Coordinator, ExperiaBoxV10Data
 from .entity import ExperiaBoxV10Entity
 
-SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
-    SensorEntityDescription(
+
+class ExperiaBoxV10SensorEntityDescription(SensorEntityDescription):
+    """Class describing ExperiaBox v10 sensor entities."""
+
+    def __init__(
+        self,
+        value_fn: Callable[[ExperiaBoxV10Data], str | int | float | None],
+        attributes_fn: Callable[[ExperiaBoxV10Data], dict[str, Any]] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize the sensor description."""
+        super().__init__(**kwargs)
+        self.value_fn = value_fn
+        self.attributes_fn = attributes_fn
+
+
+SENSOR_TYPES: tuple[ExperiaBoxV10SensorEntityDescription, ...] = (
+    ExperiaBoxV10SensorEntityDescription(
         key="uptime",
         name="Uptime",
-        device_class=SensorDeviceClass.DURATION,
-        entity_category=EntityCategory.DIAGNOSTIC,
         native_unit_of_measurement="s",
+        device_class=SensorDeviceClass.DURATION,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.router_info.uptime,
     ),
-    SensorEntityDescription(
+    ExperiaBoxV10SensorEntityDescription(
         key="external_ip",
         name="External IP",
         icon="mdi:ip",
-        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda data: data.wan_info.external_ip,
     ),
-    SensorEntityDescription(
+    ExperiaBoxV10SensorEntityDescription(
         key="link_status",
         name="WAN Link Status",
         icon="mdi:lan-connect",
-        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda data: data.wan_info.link_status,
     ),
-    SensorEntityDescription(
+    ExperiaBoxV10SensorEntityDescription(
         key="bytes_received",
         name="Data Received",
-        device_class=SensorDeviceClass.DATA_SIZE,
         native_unit_of_measurement=UnitOfInformation.BYTES,
+        device_class=SensorDeviceClass.DATA_SIZE,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda data: data.traffic_info.bytes_received,
     ),
-    SensorEntityDescription(
+    ExperiaBoxV10SensorEntityDescription(
         key="bytes_sent",
         name="Data Sent",
-        device_class=SensorDeviceClass.DATA_SIZE,
         native_unit_of_measurement=UnitOfInformation.BYTES,
+        device_class=SensorDeviceClass.DATA_SIZE,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda data: data.traffic_info.bytes_sent,
     ),
-    SensorEntityDescription(
+    ExperiaBoxV10SensorEntityDescription(
         key="throughput_down",
         name="Download Speed",
+        native_unit_of_measurement="B/s",
         device_class=SensorDeviceClass.DATA_RATE,
-        native_unit_of_measurement=UnitOfDataRate.BYTES_PER_SECOND,
         state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.throughput_down,
     ),
-    SensorEntityDescription(
+    ExperiaBoxV10SensorEntityDescription(
         key="throughput_up",
         name="Upload Speed",
+        native_unit_of_measurement="B/s",
         device_class=SensorDeviceClass.DATA_RATE,
-        native_unit_of_measurement=UnitOfDataRate.BYTES_PER_SECOND,
         state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.throughput_up,
     ),
-    SensorEntityDescription(
-        key="client_count",
+    ExperiaBoxV10SensorEntityDescription(
+        key="active_clients",
         name="Active Clients",
         icon="mdi:account-group",
         state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: len([d for d in data.devices if d.active]),
+        attributes_fn=lambda data: {
+            "total_devices": len(data.devices),
+            "first_device": data.devices[0].mac if data.devices else None,
+        },
     ),
-    SensorEntityDescription(
+    ExperiaBoxV10SensorEntityDescription(
         key="last_new_device",
         name="Last New Device",
-        icon="mdi:account-alert",
-        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:account-plus",
+        value_fn=lambda data: data.last_new_device,
     ),
 )
 
@@ -85,50 +115,36 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the ExperiaBox v10 sensor."""
+    """Set up the ExperiaBox v10 sensors."""
     coordinator: ExperiaBoxV10Coordinator = hass.data[DOMAIN][entry.entry_id]
-
-    entities = [
+    async_add_entities(
         ExperiaBoxV10Sensor(coordinator, description) for description in SENSOR_TYPES
-    ]
-
-    async_add_entities(entities)
+    )
 
 
 class ExperiaBoxV10Sensor(ExperiaBoxV10Entity, SensorEntity):
     """Represent an ExperiaBox v10 sensor."""
 
+    entity_description: ExperiaBoxV10SensorEntityDescription
+
     def __init__(
         self,
         coordinator: ExperiaBoxV10Coordinator,
-        description: SensorEntityDescription,
+        description: ExperiaBoxV10SensorEntityDescription,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self.entity_description = description
-        self._attr_unique_id = (
-            f"{coordinator.data.router_info.serial_number}_{description.key}"
-        )
+        self._attr_unique_id = f"{coordinator.data.router_info.serial_number}_{description.key}"
 
     @property
     def native_value(self) -> str | int | float | None:
         """Return the state of the sensor."""
-        if self.entity_description.key == "uptime":
-            return self.coordinator.data.router_info.uptime
-        if self.entity_description.key == "external_ip":
-            return self.coordinator.data.wan_info.external_ip
-        if self.entity_description.key == "link_status":
-            return self.coordinator.data.wan_info.link_status
-        if self.entity_description.key == "bytes_received":
-            return self.coordinator.data.traffic_info.bytes_received
-        if self.entity_description.key == "bytes_sent":
-            return self.coordinator.data.traffic_info.bytes_sent
-        if self.entity_description.key == "throughput_down":
-            return self.coordinator.data.throughput_down
-        if self.entity_description.key == "throughput_up":
-            return self.coordinator.data.throughput_up
-        if self.entity_description.key == "client_count":
-            return len([d for d in self.coordinator.data.devices if d.active])
-        if self.entity_description.key == "last_new_device":
-            return self.coordinator.data.last_new_device
+        return self.entity_description.value_fn(self.coordinator.data)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the state attributes."""
+        if self.entity_description.attributes_fn:
+            return self.entity_description.attributes_fn(self.coordinator.data)
         return None

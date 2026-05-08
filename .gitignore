@@ -49,7 +49,12 @@ coverage.xml
 *.cover
 *.py,cover
 .hypothesis/
-.pytest_cache/
+
+# Reverse Engineering
+REVERSE_ENGINEERING.md
+reproduce_issue.py
+probe_api.py
+mock_router.py
 
 # Translations
 *.mo

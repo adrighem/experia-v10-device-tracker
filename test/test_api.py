@@ -24,37 +24,67 @@ def create_mock_response(status=200, json_data=None, headers=None):
 
 @pytest.mark.asyncio
 async def test_get_devices(api, mock_session):
-    """Test get_devices with fallback."""
-    mock_login_resp = create_mock_response(
-        status=200,
-        json_data={"data": {"contextID": "abc"}}
-    )
-
-    mock_data_resp = create_mock_response(
+    """Test get_devices using the new topology method."""
+    mock_login_resp = create_mock_response(status=200, json_data={"data": {"contextID": "abc"}})
+    mock_topology_resp = create_mock_response(
         status=200,
         json_data={
             "status": [
                 {
-                    "Active": True,
-                    "Tags": "lan eth",
-                    "PhysAddress": "11:22:33:44:55:66",
-                    "Name": "Wired",
-                    "IPAddress": "192.168.2.100"
+                    "Key": "lan",
+                    "Children": [
+                        {
+                            "Key": "ETH0",
+                            "Tags": "lan eth",
+                            "Children": [
+                                {
+                                    "PhysAddress": "11:22:33:44:55:66",
+                                    "Name": "PC",
+                                    "Active": True,
+                                    "Tags": "edev lan eth"
+                                }
+                            ]
+                        },
+                        {
+                            "Key": "vap2g0priv",
+                            "Tags": "wifi",
+                            "Children": [
+                                {
+                                    "PhysAddress": "AA:BB:CC:DD:EE:FF",
+                                    "Name": "Phone",
+                                    "Active": True,
+                                    "Tags": "edev wifi"
+                                }
+                            ]
+                        }
+                    ]
                 }
             ]
         }
     )
+    # Mocking guest topology as empty
+    mock_empty_resp = create_mock_response(status=200, json_data={"status": []})
+    
+    def mock_post(url, **kwargs):
+        print("MOCK POST CALLED:", url)
+        if "login" in url or "ws" in url and "ssw" in str(kwargs.get("json")):
+            return mock_login_resp
+        if "topology" in str(kwargs.get("json")) and "lan" in str(kwargs.get("json")):
+            return mock_topology_resp
+        return mock_empty_resp
 
-    mock_session.post.side_effect = [mock_login_resp, mock_data_resp]
-
+    mock_session.post.side_effect = mock_post
     devices = await api.get_devices(track_wired_devices=True)
-    assert len(devices) == 1
-    assert devices[0].mac == "11:22:33:44:55:66"
+
+    print("DEVICES FOUND:", devices)
+    assert len(devices) == 2
+    assert any(d.name == "Phone" for d in devices)
+    assert any(d.name == "PC" for d in devices)
 
 @pytest.mark.asyncio
 async def test_get_router_info_universal(api, mock_session):
     """Test get_router_info with universal approach."""
-    mock_login_resp = create_mock_response(status=200, json_data={"status": {"contextID": "abc"}})
+    mock_login_resp = create_mock_response(status=200, json_data={"data": {"contextID": "abc"}})
     mock_data_resp = create_mock_response(
         status=200,
         json_data={
@@ -70,16 +100,16 @@ async def test_get_router_info_universal(api, mock_session):
     assert info.uptime == 12345
 
 @pytest.mark.asyncio
-async def test_get_wan_info_information_fallback(api, mock_session):
-    """Test get_wan_info using Device.Information fallback."""
+async def test_get_wan_info_nmc(api, mock_session):
+    """Test get_wan_info using the new NMC:getWANStatus method."""
     mock_login_resp = create_mock_response(status=200, json_data={"data": {"contextID": "abc"}})
-    # First request is to sah.Device.Information
     mock_info_resp = create_mock_response(
         status=200,
         json_data={
-            "status": {
-                "ExternalIPAddress": "1.2.3.4",
-                "DeviceStatus": "Up"
+            "status": True,
+            "data": {
+                "IPAddress": "1.2.3.4",
+                "LinkState": "up"
             }
         }
     )
@@ -90,43 +120,20 @@ async def test_get_wan_info_information_fallback(api, mock_session):
 
 @pytest.mark.asyncio
 async def test_get_traffic_info(api, mock_session):
-    """Test get_traffic_info using getNetDevStats."""
+    """Test get_traffic_info using the new NeMo.Intf.eth0 method."""
     mock_login_resp = create_mock_response(status=200, json_data={"data": {"contextID": "abc"}})
-    mock_data_resp = create_mock_response(
-        status=200,
-        json_data={
-            "status": {
-                "TxBytes": 500,
-                "RxBytes": 600,
-                "TxPackets": 50,
-                "RxPackets": 60
-            }
-        }
-    )
-    mock_session.post.side_effect = [mock_login_resp, mock_data_resp]
-    info = await api.get_traffic_info()
-    assert info.bytes_sent == 500
-    assert info.bytes_received == 600
-    assert info.packets_sent == 50
-    assert info.packets_received == 60
-
-@pytest.mark.asyncio
-async def test_get_traffic_info_fallback(api, mock_session):
-    """Test get_traffic_info fallback from ppp_vdata to eth0."""
-    mock_login_resp = create_mock_response(status=200, json_data={"data": {"contextID": "abc"}})
-    # First call (ppp_vdata) returns empty
-    mock_data_empty = create_mock_response(status=200, json_data={"status": {}})
-    # Second call (eth0) returns data
     mock_data_resp = create_mock_response(
         status=200,
         json_data={
             "status": {
                 "TxBytes": 1000,
-                "RxBytes": 2000
+                "RxBytes": 2000,
+                "TxPackets": 100,
+                "RxPackets": 200
             }
         }
     )
-    mock_session.post.side_effect = [mock_login_resp, mock_data_empty, mock_data_resp]
+    mock_session.post.side_effect = [mock_login_resp, mock_data_resp]
     info = await api.get_traffic_info()
     assert info.bytes_sent == 1000
     assert info.bytes_received == 2000

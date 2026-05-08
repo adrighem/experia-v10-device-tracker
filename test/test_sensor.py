@@ -59,3 +59,20 @@ def test_sensor_properties(coordinator):
     # Test Client Count
     client_sensor = ExperiaBoxV10Sensor(coordinator, SENSOR_TYPES[7])
     assert client_sensor.native_value == 1
+
+def test_last_new_device_sensor(coordinator):
+    """Test last new device sensor."""
+    mock_router_info = RouterInfo("H369A", "V1.0", "V10.C.26.04", "SN1", 3600)
+    mock_wan_info = WanInfo("8.8.8.8", True, "Up")
+    mock_traffic_info = TrafficInfo(1000, 2000, 10, 20)
+    
+    coordinator.data = ExperiaBoxV10Data(
+        [], mock_router_info, mock_wan_info, mock_traffic_info,
+        last_new_device="NewDevice (MAC2)"
+    )
+    
+    description = SENSOR_TYPES[8] # Last New Device
+    sensor = ExperiaBoxV10Sensor(coordinator, description)
+    
+    assert sensor.unique_id == "SN1_last_new_device"
+    assert sensor.native_value == "NewDevice (MAC2)"
