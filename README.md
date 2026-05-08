@@ -1,69 +1,37 @@
-# KPN Experia Box v10 Integration for Home Assistant
+# KPN Experia Box v10 Integration
 
 <p align="center">
   <img src="custom_components/experiaboxv10/brand/icon.png" width="150" alt="KPN Experia Box v10 Logo">
 </p>
 
-This is a comprehensive Home Assistant integration for the ZTE H369A (Experia Box v10) router, primarily used for [KPN Internet](https://www.kpn.com/internet) connections in the Netherlands (also used by Telfort). It goes beyond simple device tracking to provide full router management, network health monitoring, and real-time traffic statistics.
+*Because your ISP-provided router doesn't have to be a black box.*
 
-**Note:** This is a modernized and significantly expanded fork of the original [experia-v10-device-tracker](https://github.com/kadima-tech/experia-v10-device-tracker). It follows the latest Home Assistant standards, including UI-based configuration (Config Flow) and efficient asynchronous data fetching.
+This integration wrangles your ZTE H369A (Experia Box v10) into Home Assistant. It speaks both the old language and the shiny new "KPN Software" (V10.C.26.02.06+) dialect, giving you full visibility and control over your home network.
 
-## Features
+**Note:** This is a modernized and significantly expanded fork of the original [experia-v10-device-tracker](https://github.com/kadima-tech/experia-v10-device-tracker).
 
-- **Comprehensive Device Tracking:** Monitor presence of all LAN and WLAN connected devices.
-- **Network Health & Diagnostics:**
-  - External IP Address tracking.
-  - WAN Connectivity status.
-  - WAN Link Status (Up/Down).
-  - Router Uptime.
-- **Real-time Traffic Statistics:**
-  - Total Data Received/Sent (byte-level accuracy).
-  - Live Download/Upload Speeds (throughput calculation).
-  - Active Client Count.
-- **Router Management:**
-  - Remote Reboot functionality.
-  - Guest Wi-Fi toggle control.
-- **Security Alerts:**
-  - Automatic detection of new devices joining the network.
-  - "Last New Device" sensor with MAC and name information.
-- **Modern Architecture:**
-  - **UI-based Configuration:** Setup via the Home Assistant Integrations UI.
-  - **Asynchronous:** Built on `aiohttp` for non-blocking communication.
-  - **Organized Entities:** All entities are logically grouped under a single "H369A" device.
+## 🚀 What it does
 
-## Installation
+*   **Who's home?** Tracks all connected devices (wired and wireless) using robust network topology traversal. No more guessing.
+*   **Speed & Greed:** Monitors real-time download/upload speeds and total data consumption.
+*   **Vitals:** Keeps an eye on your External IP, WAN link status, active client count, and router uptime.
+*   **Intruder Alert:** Triggers a diagnostic sensor when a wild new device appears on your network.
+*   **The Big Buttons:** Reboot the router or toggle Guest Wi-Fi directly from your dashboard.
 
-### HACS (Recommended)
+## 📦 Installation
 
-1. Open HACS in your Home Assistant.
-2. Click on "Integrations".
-3. Click on the three dots in the top right corner and select "Custom repositories".
-4. Add this repository URL: `https://github.com/adrighem/kpn-experia-v10-integration` and category "Integration".
-5. Find "ExperiaBox v10" and click "Download".
-6. Restart Home Assistant.
+Grab it via [HACS](https://hacs.xyz/):
 
-### Manual
+1. HACS > Integrations > 3 dots (top right) > Custom repositories.
+2. Add `https://github.com/adrighem/kpn-experia-v10-integration` as an **Integration**.
+3. Download "ExperiaBox v10".
+4. Restart Home Assistant.
 
-1. Download the latest release.
-2. Copy the `custom_components/experiaboxv10` folder to your `/config/custom_components/` directory.
-3. Restart Home Assistant.
+## ⚙️ Configuration
 
-## Configuration
+Forget YAML. This is the future.
 
-1. In Home Assistant, go to **Settings** -> **Devices & Services**.
-2. Click **Add Integration**.
-3. Search for **ExperiaBox v10**.
-4. Enter your router's IP address, username, and password.
-
-## Contributing
-
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
-
-## Acknowledgments
-
-* **Sjaak Meulen** - *Initial implementation* - [sjaakiejj](https://github.com/sjaakiejj)
-* [Mark van den Berg](https://community.home-assistant.io/t/device-tracker-for-arcadyan-vgv7519-router-experia-box-v8/29362) - *Original Experia Box V8 script*
+1. Go to **Settings** -> **Devices & Services**.
+2. Click **Add Integration** and search for **ExperiaBox v10**.
+3. Punch in your router's IP, username (usually `admin`), and password.
+4. Enjoy the data.
