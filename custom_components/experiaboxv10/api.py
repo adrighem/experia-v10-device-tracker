@@ -120,13 +120,34 @@ class ExperiaBoxV10Api:
             "method": method,
             "parameters": parameters or {},
         }
-        async with self._session.post(url, headers=headers, json=payload) as resp:
-            if resp.status == 401:
-                # Session expired, re-authenticate
-                self._context_id = None
-                self._cookie = None
-                return await self._request(service, method, parameters, endpoint)
-            return await resp.json(content_type=None)
+        try:
+            async with self._session.post(url, headers=headers, json=payload) as resp:
+                if resp.status in (401, 403):
+                    # Session expired, re-authenticate
+                    _LOGGER.debug("Session expired (HTTP %s), re-authenticating", resp.status)
+                    self._context_id = None
+                    self._cookie = None
+                    return await self._request(service, method, parameters, endpoint)
+                
+                resp.raise_for_status()
+                data = await resp.json(content_type=None)
+                
+                # Check for application-level errors that might indicate an expired session
+                if isinstance(data, dict) and "error" in data:
+                    error_code = data.get("error")
+                    # Some SAH implementations return 196618 for "not found" which can happen if the 
+                    # context is invalid on a specific endpoint
+                    if error_code == 196618 and service != "DeviceInfo":
+                        _LOGGER.debug("Received error 196618, clearing session to force re-auth")
+                        self._context_id = None
+                        self._cookie = None
+                        
+                return data if isinstance(data, dict) else {}
+        except Exception as err:
+            _LOGGER.debug("Request to %s.%s failed: %s", service, method, err)
+            self._context_id = None
+            self._cookie = None
+            raise
 
     def _parse_devices(self, status_list: list[dict], track_wired_devices: bool, results: dict[str, Device], parent_is_wifi: bool = False) -> None:
         """Parse a list of device objects and update the results dictionary."""
