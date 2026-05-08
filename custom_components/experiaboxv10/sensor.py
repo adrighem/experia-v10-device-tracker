@@ -84,7 +84,7 @@ SENSOR_TYPES: tuple[ExperiaBoxV10SensorEntityDescription, ...] = (
         value_fn=lambda data: data.throughput_up,
     ),
     ExperiaBoxV10SensorEntityDescription(
-        key="active_clients",
+        key="client_count",
         name="Active Clients",
         icon="mdi:account-group",
         state_class=SensorStateClass.MEASUREMENT,
