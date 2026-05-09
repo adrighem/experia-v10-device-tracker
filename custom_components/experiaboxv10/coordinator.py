@@ -121,24 +121,38 @@ class ExperiaBoxV10Coordinator(DataUpdateCoordinator[ExperiaBoxV10Data]):
         """Update data via library."""
         try:
             _LOGGER.debug("Fetching data from ExperiaBox v10")
-            (
-                devices,
-                router_info,
-                wan_info,
-                traffic_info,
-                guest_wifi_enabled,
-            ) = await asyncio.gather(
+            results = await asyncio.gather(
                 self.api.get_devices(self.track_wired_devices),
                 self.api.get_router_info(),
                 self.api.get_wan_info(),
                 self.api.get_traffic_info(),
                 self.api.get_guest_wifi_enabled(),
+                return_exceptions=True,
             )
+            
+            # Check for critical failures on first run
+            if self.data is None:
+                for res in results:
+                    if isinstance(res, Exception):
+                        raise res
+                        
+            # Unpack results with fallback to previous data on partial failures
+            devices = results[0] if not isinstance(results[0], Exception) else getattr(self.data, "devices", [])
+            router_info = results[1] if not isinstance(results[1], Exception) else getattr(self.data, "router_info", None)
+            wan_info = results[2] if not isinstance(results[2], Exception) else getattr(self.data, "wan_info", None)
+            traffic_info = results[3] if not isinstance(results[3], Exception) else getattr(self.data, "traffic_info", None)
+            guest_wifi_enabled = results[4] if not isinstance(results[4], Exception) else getattr(self.data, "guest_wifi_enabled", False)
+
+            # Log warnings for any partial failures
+            for idx, res in enumerate(results):
+                if isinstance(res, Exception):
+                    _LOGGER.warning("Partial update failure for endpoint index %d: %s", idx, res)
+
             _LOGGER.debug("Successfully fetched data from ExperiaBox v10")
 
             current_time = time.monotonic()
-            throughput_down, throughput_up = self._calculate_throughput(current_time, traffic_info)
-            new_device_detected = self._detect_new_devices(current_time, devices)
+            throughput_down, throughput_up = self._calculate_throughput(current_time, traffic_info) if traffic_info else (0.0, 0.0)
+            new_device_detected = self._detect_new_devices(current_time, devices) if devices else False
 
             return ExperiaBoxV10Data(
                 devices,

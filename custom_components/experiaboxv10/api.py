@@ -151,8 +151,7 @@ class ExperiaBoxV10Api:
                             self._context_id = None
                             self._cookie = None
                             return await self._request(service, method, parameters, endpoint)
-                        # 196618 = Object not found (endpoint doesn't exist). Just return the data, let caller handle it.
-                        elif str(error_code) != "196618":
+                        else:
                             raise Exception(f"Router API returned error {error_code}: {data}")
 
                 return data if isinstance(data, dict) else {}
