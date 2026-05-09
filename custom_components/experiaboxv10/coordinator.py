@@ -129,19 +129,39 @@ class ExperiaBoxV10Coordinator(DataUpdateCoordinator[ExperiaBoxV10Data]):
                 self.api.get_guest_wifi_enabled(),
                 return_exceptions=True,
             )
-            
-            # Check for critical failures on first run
-            if self.data is None:
-                for res in results:
-                    if isinstance(res, Exception):
-                        raise res
                         
             # Unpack results with fallback to previous data on partial failures
-            devices = results[0] if not isinstance(results[0], Exception) else getattr(self.data, "devices", [])
-            router_info = results[1] if not isinstance(results[1], Exception) else getattr(self.data, "router_info", None)
-            wan_info = results[2] if not isinstance(results[2], Exception) else getattr(self.data, "wan_info", None)
-            traffic_info = results[3] if not isinstance(results[3], Exception) else getattr(self.data, "traffic_info", None)
-            guest_wifi_enabled = results[4] if not isinstance(results[4], Exception) else getattr(self.data, "guest_wifi_enabled", False)
+            # Raise exception on first run only for critical components
+            if isinstance(results[0], Exception):
+                if self.data is None:
+                    raise results[0]
+                devices = self.data.devices
+            else:
+                devices = results[0]
+                
+            if isinstance(results[1], Exception):
+                if self.data is None:
+                    raise results[1]
+                router_info = self.data.router_info
+            else:
+                router_info = results[1]
+                
+            if isinstance(results[2], Exception):
+                if self.data is None:
+                    raise results[2]
+                wan_info = self.data.wan_info
+            else:
+                wan_info = results[2]
+                
+            if isinstance(results[3], Exception):
+                traffic_info = self.data.traffic_info if self.data else TrafficInfo(0, 0, 0, 0)
+            else:
+                traffic_info = results[3]
+                
+            if isinstance(results[4], Exception):
+                guest_wifi_enabled = self.data.guest_wifi_enabled if self.data else False
+            else:
+                guest_wifi_enabled = results[4]
 
             # Log warnings for any partial failures
             for idx, res in enumerate(results):
