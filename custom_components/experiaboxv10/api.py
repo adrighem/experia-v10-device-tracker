@@ -131,7 +131,6 @@ class ExperiaBoxV10Api:
             async with self._session.post(url, headers=headers, json=payload) as resp:
                 if resp.status in (401, 403):
                     # Session expired, re-authenticate
-                    _LOGGER.debug("Session expired (HTTP %s), re-authenticating", resp.status)
                     self._context_id = None
                     self._cookie = None
                     return await self._request(service, method, parameters, endpoint)
@@ -139,19 +138,25 @@ class ExperiaBoxV10Api:
                 resp.raise_for_status()
                 data = await resp.json(content_type=None)
                 
-                # Check for application-level errors that might indicate an expired session
-                if isinstance(data, dict) and "error" in data:
+                # Check for application-level errors
+                if isinstance(data, dict):
+                    # Check both "error" string/int and "errors" list structure
                     error_code = data.get("error")
-                    # Some SAH implementations return 196618 for "not found" which can happen if the 
-                    # context is invalid on a specific endpoint
-                    if error_code == 196618 and service != "DeviceInfo":
-                        _LOGGER.debug("Received error 196618, clearing session to force re-auth")
-                        self._context_id = None
-                        self._cookie = None
+                    if "errors" in data and isinstance(data["errors"], list) and len(data["errors"]) > 0:
+                        error_code = data["errors"][0].get("error")
                         
+                    if error_code is not None:
+                        # 196621 = Access Denied / Invalid Session, 9003 = Invalid arguments
+                        if str(error_code) in ("196621", "196614", "9003"):
+                            self._context_id = None
+                            self._cookie = None
+                            return await self._request(service, method, parameters, endpoint)
+                        # 196618 = Object not found (endpoint doesn't exist). Just return the data, let caller handle it.
+                        elif str(error_code) != "196618":
+                            raise Exception(f"Router API returned error {error_code}: {data}")
+
                 return data if isinstance(data, dict) else {}
         except Exception as err:
-            _LOGGER.debug("Request to %s.%s failed: %s", service, method, err)
             self._context_id = None
             self._cookie = None
             raise
