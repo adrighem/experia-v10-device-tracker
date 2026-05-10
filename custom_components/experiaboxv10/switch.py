@@ -37,6 +37,15 @@ SWITCH_TYPES: tuple[ExperiaBoxV10SwitchEntityDescription, ...] = (
         turn_on_fn=lambda api: api.set_guest_wifi(True),
         turn_off_fn=lambda api: api.set_guest_wifi(False),
     ),
+    ExperiaBoxV10SwitchEntityDescription(
+        key="global_wifi",
+        name="Global Wi-Fi",
+        icon="mdi:wifi",
+        entity_category=EntityCategory.CONFIG,
+        is_on_fn=lambda data: data.wifi_enabled,
+        turn_on_fn=lambda api: api.set_wifi(True),
+        turn_off_fn=lambda api: api.set_wifi(False),
+    ),
 )
 
 

@@ -377,3 +377,21 @@ class ExperiaBoxV10Api:
                     )
                     return
         raise Exception("Guest Wi-Fi interface not found")
+
+    async def get_wifi_enabled(self) -> bool:
+        """Get Global Wi-Fi status."""
+        data = await self._request("NMC.Wifi", "get", endpoint="ws")
+        status = data.get("status", {})
+        if not isinstance(status, dict):
+            status = {}
+        return not status.get("DisableLocalWiFi", False)
+
+    async def set_wifi(self, enable: bool) -> None:
+        """Enable or disable Global Wi-Fi."""
+        disable_val = not enable
+        await self._request("NMC.Wifi", "set", {"DisableLocalWiFi": disable_val}, endpoint="ws")
+        await self._request("NeMo.Intf.rad2g0", "set", {"Enable": enable}, endpoint="ws")
+        await self._request("NeMo.Intf.rad5g0", "set", {"Enable": enable}, endpoint="ws")
+        if enable:
+            await self._request("NeMo.Intf.vap2g0priv", "set", {"PersistentEnable": True}, endpoint="ws")
+            await self._request("NeMo.Intf.vap5g0priv", "set", {"PersistentEnable": True}, endpoint="ws")

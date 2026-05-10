@@ -40,6 +40,7 @@ class ExperiaBoxV10Data:
         self.wan_info = wan_info
         self.traffic_info = traffic_info
         self.guest_wifi_enabled = guest_wifi_enabled
+        self.wifi_enabled = wifi_enabled
         self.new_device_detected = new_device_detected
         self.last_new_device = last_new_device
         self.throughput_down = throughput_down
@@ -187,6 +188,11 @@ class ExperiaBoxV10Coordinator(DataUpdateCoordinator[ExperiaBoxV10Data]):
             )
         except Exception as exception:
             _LOGGER.exception("Error communicating with ExperiaBox v10")
+            raise UpdateFailed(
+                f"Error communicating with ExperiaBox: {exception}"
+            ) from exception
+ion
+periaBox v10")
             raise UpdateFailed(
                 f"Error communicating with ExperiaBox: {exception}"
             ) from exception
