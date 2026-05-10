@@ -347,7 +347,7 @@ class ExperiaBoxV10Api:
 
     async def reboot(self) -> None:
         """Reboot the router."""
-        await self._request("sah.Device.Information", "reboot", endpoint="ws")
+        await self._request("NMC", "reboot", {"reason": "WebUI reboot"}, endpoint="ws")
 
     async def get_guest_wifi_enabled(self) -> bool:
         """Get Guest Wi-Fi status."""
