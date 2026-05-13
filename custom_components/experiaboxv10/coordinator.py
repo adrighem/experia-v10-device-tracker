@@ -199,8 +199,3 @@ class ExperiaBoxV10Coordinator(DataUpdateCoordinator[ExperiaBoxV10Data]):
             raise UpdateFailed(
                 f"Error communicating with ExperiaBox: {exception}"
             ) from exception
-ion
-periaBox v10")
-            raise UpdateFailed(
-                f"Error communicating with ExperiaBox: {exception}"
-            ) from exception
