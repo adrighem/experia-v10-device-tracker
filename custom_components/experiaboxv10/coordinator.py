@@ -29,6 +29,7 @@ class ExperiaBoxV10Data:
         wan_info: WanInfo,
         traffic_info: TrafficInfo,
         guest_wifi_enabled: bool = False,
+        wifi_enabled: bool = False,
         new_device_detected: bool = False,
         last_new_device: str | None = None,
         throughput_down: float = 0,
@@ -128,6 +129,7 @@ class ExperiaBoxV10Coordinator(DataUpdateCoordinator[ExperiaBoxV10Data]):
                 self.api.get_wan_info(),
                 self.api.get_traffic_info(),
                 self.api.get_guest_wifi_enabled(),
+                self.api.get_wifi_enabled(),
                 return_exceptions=True,
             )
                         
@@ -164,6 +166,11 @@ class ExperiaBoxV10Coordinator(DataUpdateCoordinator[ExperiaBoxV10Data]):
             else:
                 guest_wifi_enabled = results[4]
 
+            if isinstance(results[5], Exception):
+                wifi_enabled = self.data.wifi_enabled if self.data else False
+            else:
+                wifi_enabled = results[5]
+
             # Log warnings for any partial failures
             for idx, res in enumerate(results):
                 if isinstance(res, Exception):
@@ -181,6 +188,7 @@ class ExperiaBoxV10Coordinator(DataUpdateCoordinator[ExperiaBoxV10Data]):
                 wan_info,
                 traffic_info,
                 guest_wifi_enabled,
+                wifi_enabled,
                 new_device_detected,
                 self._last_new_device_info,
                 throughput_down,

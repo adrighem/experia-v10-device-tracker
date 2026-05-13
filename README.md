@@ -1,7 +1,7 @@
 # KPN Experia Box v10 Integration
 
 <p align="center">
-  <img src="custom_components/experiaboxv10/brand/icon.png" width="150" alt="KPN Experia Box v10 Logo">
+  <img src="custom_components/experiaboxv10/icon.png" width="150" alt="KPN Experia Box v10 Logo">
 </p>
 
 *Because your ISP-provided router doesn't have to be a black box.*
