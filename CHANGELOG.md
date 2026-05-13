@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.2.0](https://github.com/adrighem/ha-kpn-experia-v10/compare/v3.1.1...v3.2.0) (2026-05-13)
+
+
+### Features
+
+* add global wifi on/off switch ([1eee7b2](https://github.com/adrighem/ha-kpn-experia-v10/commit/1eee7b254d598234fd11384c2663ab444067d572))
+
+
+### Bug Fixes
+
+* **coordinator:** resolve syntax error causing hassfest failure ([5cce72f](https://github.com/adrighem/ha-kpn-experia-v10/commit/5cce72fceb25d4f037b8cc8241ee64e03359e8b4))
+* **hassfest:** resolve validation failures and logic errors ([85c104f](https://github.com/adrighem/ha-kpn-experia-v10/commit/85c104ffcaefe2e15678efd71a83f80f24093423))
+* **manifest:** remove invalid homeassistant key ([15850cc](https://github.com/adrighem/ha-kpn-experia-v10/commit/15850cc7e91e5a5229f226a52498add4b7eeb52a))
+
 ## [3.1.1](https://github.com/adrighem/kpn-experia-v10-integration/compare/v3.1.0...v3.1.1) (2026-05-10)
 
 
